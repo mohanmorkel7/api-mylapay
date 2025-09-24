@@ -693,9 +693,9 @@ ${nodeHeaders}
 
       {/* Display current config status */}
       <div className="bg-gray-50 p-3 rounded-lg text-sm">
-        <div className="flex flex-col">
-          <span className="font-medium">Base URL:</span>
-          <span className="font-mono text-gray-600 truncate max-w-full block" title={baseurlmanual || ''}>
+        <div className="flex items-center gap-2">
+          <span className="font-medium flex-shrink-0">Base URL:</span>
+          <span className="font-mono text-gray-600 whitespace-normal break-all" title={baseurlmanual || ''}>
             {baseurlmanual || 'Not configured'}
           </span>
         </div>
