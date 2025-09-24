@@ -695,7 +695,9 @@ ${nodeHeaders}
       <div className="bg-gray-50 p-3 rounded-lg text-sm">
         <div className="flex items-center justify-between">
           <span className="font-medium">Base URL:</span>
-          <span className="font-mono text-gray-600">{baseurlmanual || 'Not configured'}</span>
+          <span className="font-mono text-gray-600 block max-w-full overflow-x-auto whitespace-nowrap">
+            {baseurlmanual || 'Not configured'}
+          </span>
         </div>
         {/* <div className="flex items-center justify-between mt-1">
           <span className="font-medium">Bearer Token:</span>
