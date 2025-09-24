@@ -555,6 +555,10 @@ echo $response;
 ?>`;
 
   case 'nodejs':
+  if (isFormData && formEntries.length > 0) {
+    const formLines = formEntries.map(f => `fd.append('${f.key}', '${f.value}');`).join('\n');
+    return `const FormData = require('form-data');\nconst fd = new FormData();\n${formLines}\n\nfetch('${fullUrl}', {\n  method: '${api.method}',\n  body: fd\n})\n.then(res => res.json())\n.then(data => console.log(data));`;
+  }
   const nodeHeaders = Object.entries(headers)
     .map(([key, value]) => `    '${key}': '${value}'`)
     .join(',\n');
