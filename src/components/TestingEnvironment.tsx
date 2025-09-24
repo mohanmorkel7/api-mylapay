@@ -467,6 +467,21 @@ const extractBaseUrl = (url: any): string => {
     return `fetch('${fullUrl}', {\n  method: '${api.method}',\n  headers: {\n${headersObj}\n  }${hasBody && requestBody ? `,\n  body: \`${requestBody}\`` : ''}\n})\n.then(response => response.json())\n.then(data => console.log(data))\n.catch(error => console.error('Error:', error));`;
 
   case 'python':
+    if (isFormData && formEntries.length > 0) {
+      const formLines = formEntries.map(f => `(${JSON.stringify(f.key)}, ${JSON.stringify(f.value)})`).join(',\n  ');
+      return `import requests
+
+url = "${fullUrl}"
+
+form_data = [
+  ${formLines}
+]
+
+response = requests.${api.method.toLowerCase()}(url, files=dict(form_data))
+print('Status:', response.status_code)
+print(response.text)`;
+    }
+
     const pythonHeaders = Object.entries(headers)
       .map(([key, value]) => `    "${key}": "${value}"`)
       .join(',\n');
