@@ -7,7 +7,6 @@ import rehypeRaw from 'rehype-raw';
 import type { Components } from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { materialLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useEffect, useState } from 'react';
 
 // const getApiDetails = (api: any) => {
 //   let finalUrl = '';
