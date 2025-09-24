@@ -661,7 +661,7 @@ export const ApiDetailView: React.FC<ApiDetailViewProps> = ({ api }) => {
      console.log("api : ", JSON.stringify(api));
 
     return (
-      <div>
+      <div className="overflow-x-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
@@ -749,8 +749,8 @@ export const ApiDetailView: React.FC<ApiDetailViewProps> = ({ api }) => {
           ),
           pre: ({ node, children, ...props }) => (
             <pre
-              className="bg-gray-100 p-4 rounded overflow-x-auto text-sm mb-4 shadow-sm"
-              style={{ whiteSpace: 'pre-wrap' }}
+              className="bg-gray-100 p-4 rounded text-sm mb-4 shadow-sm break-words whitespace-pre-wrap"
+              style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
               {...props}
             >
               {children}
@@ -767,7 +767,7 @@ export const ApiDetailView: React.FC<ApiDetailViewProps> = ({ api }) => {
             <div>
               <h4 className="font-semibold mb-2">Folder Information</h4>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <pre className="text-sm text-gray-700 whitespace-pre-wrap">
+                <pre className="text-sm text-gray-700 whitespace-pre-wrap break-words">
                   {JSON.stringify(api.folderInfo, null, 2)}
                 </pre>
               </div>
@@ -806,7 +806,7 @@ export const ApiDetailView: React.FC<ApiDetailViewProps> = ({ api }) => {
             <h4 className="font-semibold mb-2">Description</h4>
           
 
-            <div className="prose prose-sm max-w-none text-justify whitespace-pre-wrap break-words text-gray-700 bg-gray-100 rounded-md p-6 overflow-scroll">
+            <div className="prose prose-sm max-w-none text-justify whitespace-pre-wrap break-words text-gray-700 bg-gray-100 rounded-md p-6 overflow-x-hidden">
               <ReactMarkdown rehypePlugins={[rehypeRaw]}>
                       {details.description}
               </ReactMarkdown>
