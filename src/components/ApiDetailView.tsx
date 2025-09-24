@@ -7,6 +7,7 @@ import rehypeRaw from 'rehype-raw';
 import type { Components } from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { materialLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useEffect, useState } from 'react';
 
 // const getApiDetails = (api: any) => {
 //   let finalUrl = '';
@@ -316,28 +317,169 @@ export const getApiDetails = (api: any) => {
 
 const extractParametersFromPostmanBody = (body: any): any[] => {
   const parameters: any[] = [];
-
   if (!body || !body.mode) return parameters;
 
-  // 1. Handle raw JSON bodies
-  if (body.mode === 'raw' && typeof body.raw === 'string') {
-    try {
-      const jsonBody = JSON.parse(body.raw);
-      Object.entries(jsonBody).forEach(([key, value]) => {
+  type Requirement = 'Mandatory' | 'Optional' | 'Conditional';
+
+  const toType = (v: any): string => {
+    if (Array.isArray(v)) return 'array';
+    if (v === null) return 'null';
+    return typeof v;
+  };
+
+  // Remove // and /* */ comments from JSON while preserving string contents
+  const stripJsonComments = (input: string): string => {
+    let out = '';
+    let inStr = false;
+    let quote: string | null = null;
+    let inLineComment = false;
+    let inBlockComment = false;
+    for (let i = 0; i < input.length; i++) {
+      const ch = input[i];
+      const next = input[i + 1];
+      if (inLineComment) {
+        if (ch === '\n') {
+          inLineComment = false;
+          out += ch;
+        }
+        continue;
+      }
+      if (inBlockComment) {
+        if (ch === '*' && next === '/') {
+          inBlockComment = false;
+          i++;
+        }
+        continue;
+      }
+      if (!inStr && ch === '/' && next === '/') {
+        inLineComment = true;
+        i++;
+        continue;
+      }
+      if (!inStr && ch === '/' && next === '*') {
+        inBlockComment = true;
+        i++;
+        continue;
+      }
+      if (inStr) {
+        out += ch;
+        if (ch === '\\') {
+          out += input[++i] ?? '';
+          continue;
+        }
+        if (ch === quote) {
+          inStr = false;
+          quote = null;
+        }
+        continue;
+      }
+      if (ch === '"' || ch === "'") {
+        inStr = true;
+        quote = ch;
+        out += ch;
+        continue;
+      }
+      out += ch;
+    }
+    return out;
+  };
+
+  // Capture per-line requirements from trailing // comments like // mandatory | // conditional | // optional
+  const captureRequirementsByLine = (input: string): Record<string, Requirement> => {
+    const map: Record<string, Requirement> = {};
+    const lines = input.split(/\r?\n/);
+    for (const line of lines) {
+      // Find comment start outside of simple quoted strings (heuristic)
+      let i = 0;
+      let inStr = false;
+      let quote: string | null = null;
+      let commentIdx = -1;
+      while (i < line.length) {
+        const ch = line[i];
+        if (inStr) {
+          if (ch === '\\') { i += 2; continue; }
+          if (ch === quote) { inStr = false; quote = null; }
+          i++; continue;
+        }
+        if (ch === '"' || ch === "'") { inStr = true; quote = ch; i++; continue; }
+        if (ch === '/' && line[i + 1] === '/') { commentIdx = i; break; }
+        i++;
+      }
+      if (commentIdx >= 0) {
+        const before = line.slice(0, commentIdx);
+        const comment = line.slice(commentIdx + 2).toLowerCase();
+        const keyMatch = before.match(/"([^"]+)"\s*:/);
+        if (keyMatch) {
+          const keyLower = keyMatch[1].trim().toLowerCase();
+          if (comment.includes('mandatory')) map[keyLower] = 'Mandatory';
+          else if (comment.includes('conditional')) map[keyLower] = 'Conditional';
+          else if (comment.includes('optional')) map[keyLower] = 'Optional';
+        }
+      }
+    }
+    return map;
+  };
+
+  // Recursively flatten objects into dot-notated parameter rows; inherit requirement from parent when not explicitly set on the key
+  const flattenToParams = (
+    obj: any,
+    path: string[] = [],
+    inheritedReq?: Requirement,
+    reqByKey?: Record<string, Requirement>
+  ) => {
+    Object.entries(obj).forEach(([k, v]) => {
+      const keyPath = [...path, k];
+      const leafKeyLower = k.toLowerCase();
+      const explicitReq = reqByKey?.[leafKeyLower];
+      const required: Requirement = explicitReq || inheritedReq || 'Optional';
+      const vType = toType(v);
+
+      if (vType === 'object' && v !== null && !Array.isArray(v)) {
+        // Add row for the object itself
         parameters.push({
-          key,
-          type: typeof value,
-          description: `${key}`,
-          required: 'Optional',
-          sample: value
+          key: keyPath.join('.'),
+          type: 'object',
+          description: keyPath.join('.'),
+          required,
+          sample: ''
         });
-      });
+        flattenToParams(v, keyPath, required, reqByKey);
+      } else if (Array.isArray(v)) {
+        parameters.push({
+          key: keyPath.join('.'),
+          type: 'array',
+          description: keyPath.join('.'),
+          required,
+          sample: v
+        });
+        if (v.length > 0 && typeof v[0] === 'object' && v[0] !== null) {
+          flattenToParams(v[0], [...keyPath, '[0]'], required, reqByKey);
+        }
+      } else {
+        parameters.push({
+          key: keyPath.join('.'),
+          type: vType,
+          description: keyPath.join('.'),
+          required,
+          sample: v
+        });
+      }
+    });
+  };
+
+  // 1) Raw JSON (with optional comments and requirement markers)
+  if (body.mode === 'raw' && typeof body.raw === 'string') {
+    const reqByKey = captureRequirementsByLine(body.raw);
+    const cleaned = stripJsonComments(body.raw);
+    try {
+      const jsonBody = JSON.parse(cleaned);
+      flattenToParams(jsonBody, [], undefined, reqByKey);
     } catch (e) {
       console.warn('Body is not valid JSON:', e);
     }
   }
 
-  // 2. Handle x-www-form-urlencoded
+  // 2) x-www-form-urlencoded
   if (body.mode === 'urlencoded' && Array.isArray(body.urlencoded)) {
     body.urlencoded.forEach((param: any) => {
       if (!param.key) return;
@@ -351,7 +493,7 @@ const extractParametersFromPostmanBody = (body: any): any[] => {
     });
   }
 
-  // 3. Handle form-data (file or string fields)
+  // 3) form-data
   if (body.mode === 'formdata' && Array.isArray(body.formdata)) {
     body.formdata.forEach((param: any) => {
       if (!param.key) return;
