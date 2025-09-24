@@ -1,0 +1,650 @@
+{
+	"info": {
+		"_postman_id": "db9704cb-7b4e-4a65-928b-70300292a223",
+		"name": "SANDBOX_DOCS-folder change",
+		"description": "> This Reference Documentation serves as a centralized catalog for all predefined API components that are part of the Onboarding Microservice. It includes structured information on request formats, authentication headers, encryption logic, environment variables, and reusable payload examples. This is designed to streamline onboarding for new developers and ensure consistency across teams. \n  \n\n### **Table of contents:**\n\n> \\> Introduction  \n\\> Onboarding  \n\\> Card Payment  \n\\> UPI Payment  \n\\> Net Banking \n  \n\n## **Introduction**\n\nWelcome to the API documentation for our Onboarding Service. This collection outlines the key endpoints and authentication methods required for seamless integration. Here, you'll find critical details such as API keys, encryption strategies, and signature handling—ensuring your requests are both secure and verified.\n\n## Tokenization\n\n**Tokenization** is a data security technique where sensitive information (like credit card numbers, account credentials, or personal identifiers) is replaced with a non-sensitive equivalent—called a **token**—that has no exploitable value on its own. Unlike encryption, tokens are not reversible without access to the original mapping system.\n\n## Onboarding\n\nThe Merchant Onboarding module provides a secure and scalable flow for registering new merchants into the ecosystem. Through a series of API calls, merchants are verified, profiled, and integrated into the platform seamlessly.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "39949423"
+	},
+	"item": [
+		{
+			"name": "Introduction",
+			"item": [
+				{
+					"name": "Key Generation",
+					"item": [],
+					"description": "This section outlines how to generate and use the necessary keys to securely interact with the API. To ensure secure communication, three keys are involved in the request generation.\n\n**AWS KMS cryptography**\n\nAWS KMS key generation is performed in the AWS KMS HSMs. The HSMs implement a hybrid random number generator that uses the [NIST SP800-90A Deterministic Random Bit Generator (DRBG) CTR_DRBG using AES-256](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-90Ar1.pdf). It is seeded with a nondeterministic random bit generator with 384-bits of entropy and updated with additional entropy to provide prediction resistance on every call for cryptographic material.\n\nsymmetric key encrypt commands used within HSMs use the [Advanced Encryption Standards (AES)](http://csrc.nist.gov/publications/fips/fips197/fips-197.pdf), in [Galois Counter Mode (GCM)](http://csrc.nist.gov/publications/nistpubs/800-38D/SP-800-38D.pdf) using 256-bit keys. The analogous calls to decrypt use the inverse function.\n\n<img src=\"https://content.pstmn.io/8d5e3aa8-7e1e-4ac1-8ca2-73ad26082d32/aW1hZ2UucG5n\" width=\"613\" height=\"219\">\n\n###### **Cryptographic operations**\n\nIn AWS KMS, _cryptographic operations_ are API operations that use KMS keys to protect data. Because KMS keys remain within AWS KMS, you must call AWS KMS to use a KMS key in a cryptographic operation.\n\n**Steps for Generating Key:**\n\nUpon successful completion of the Mylapay onboarding process, the client must generate the following keys from the IntelleEngine Portal: (xyz.mylapay.com)\n\n###### • x-api-key: Header Validation for API calls\n\n• Payload Secure Key (formerly known as identityKey): The Payload Secure Key is used for encrypting outbound requests and decrypting responses using the AES-256-GCM algorithm.  \n• Signature Key: The Signature Key is used for generating and verifying the HMAC-based digital signatures attached to encrypted payloads.\n\n1 . X-API-Key Authentication Using AWS KMS\n\n**X-API-Key** is a custom HTTP header used for authenticating requests to APIs. Generating this key through **AWS Key Management Service (KMS)** adds a layer of security by leveraging AWS's centralized key control and encryption capabilities.\n\n**Purpose**\n\n- To **secure API access** using a unique token (X-API-Key) issued by the server.\n    \n- To **encrypt and protect the key** using AWS KMS before distribution or usage.\n    \n\n**Workflow Overview**\n\n1. **Key Generation**:\n    \n    - AWS KMS generates a cryptographically secure API key.\n        \n    - The key is stored as a plaintext value temporarily or encrypted immediately using KMS's `Encrypt` API.\n        \n2. **Key Encryption**:\n    \n    - X-API-Key is encrypted using a specified KMS key.\n        \n    - Encrypted payload is stored securely or returned to the client in encoded format.\n        \n3. **Request Authentication**:\n    \n\n- Clients include the X-API-Key in request headers (`X-API-Key:` ).\n    \n- Server uses KMS `Decrypt` to validate and retrieve the original key.\n    \n- Key is compared against authorized values to verify access.\n    \n\n**Security Considerations**\n\n- Always use **encryption context** with KMS to bind usage to specific services or users.\n    \n- Enforce **least privilege IAM policies** for key access and usage.\n    \n- Rotate API keys periodically for enhanced security.\n    \n- Avoid logging or exposing the API key in plaintext in any system.\n    \n\n**Header Example**\n\nGET /v1/resource HTTP/1.1  \nHost: api.example.com  \nX-API-Key: eyJlbmNyeXB0ZWQiOiAiQWJjMTIzLi4uIn0=\n\n2 . Payload Secure Key with AWS KMS (AES-256-GCM)\n\nAWS Key Management Service (KMS) enables secure generation and management of cryptographic keys. When using the **AES-256-GCM algorithm**, AWS KMS provides **authenticated encryption**, ensuring both confidentiality and integrity of sensitive payloads.\n\n**Key Characteristics**\n\n- **Algorithm**: AES-256-GCM (Advanced Encryption Standard – Galois/Counter Mode)\n    \n- **Key Type**: Symmetric key (256-bit)\n    \n- **Encryption Mode**: Authenticated encryption with associated data (AEAD)\n    \n- **Integrity Check**: Uses a Galois Message Authentication Code (GMAC) tag\n    \n\n**Workflow Overview**\n\n1. **Key Generation**:\n    \n    - A symmetric key is created using AWS KMS.\n        \n    - This key is used for encrypting payloads with AES-256-GCM.\n        \n2. **Payload Encryption**:\n    \n    - The plaintext payload is encrypted using the KMS key.\n        \n    - A unique 12-byte IV (Initialization Vector) is generated for each encryption.\n        \n    - The output includes ciphertext and an authentication tag.\n        \n3. **Secure Storage/Transmission**:\n    \n    - Encrypted payload (ciphertext + tag + IV) is stored or transmitted securely.\n        \n4. **Payload Decryption**:\n    \n    - AWS KMS decrypts the payload using the same key and IV.\n        \n    - The authentication tag is verified to ensure data integrity.\n        \n5. **Validation**:\n    \n\n- If the tag is valid, the original plaintext is returned.\n    \n- If the tag fails, decryption is rejected to prevent tampered data access.\n    \n\n**Security Best Practices**\n\n- Use a **unique IV** for every encryption operation.\n    \n- Protect KMS keys with strict IAM policies and access controls.\n    \n- Enable **automatic key rotation** for long-term security.\n    \n- Avoid reusing keys for multiple unrelated payloads.\n    \n\n3 . Signature Key Generation Using AWS KMS with AES-256-GCM\n\n**Overview**\n\nThis implementation utilizes **AWS Key Management Service (KMS)** to generate and securely manage a **symmetric signature key** using the **AES-256-GCM (Galois/Counter Mode)** encryption algorithm. The key is designed for high-security operations such as digital signing and verification processes, ensuring both confidentiality and integrity.\n\n**Configuration Details**\n\n- **Algorithm:** AES-256-GCM\n    \n- **Key Type:** Symmetric\n    \n- **Key Origin:** Generated within AWS KMS (never leaves AWS boundary)\n    \n- **Usage:** Signing payloads and validating signatures (not encryption/decryption of data)\n    \n- **Key Material Protection:** Enforced via AWS KMS key policies and IAM roles\n    \n\n**Process Summary**\n\n1. **Key Creation:**\n    \n    - A symmetric KMS key is created with the `SYMMETRIC_DEFAULT` specification.\n        \n    - The AES-256-GCM encryption algorithm is applied through AWS KMS APIs.\n        \n2. **Key Usage:**\n    \n    - The key is used via AWS KMS `Encrypt` or `GenerateDataKey` operations to derive signing material.\n        \n    - Signature generation occurs outside KMS using the derived key and GCM mode for authenticated encryption.\n        \n3. **Security Considerations:**\n    \n\n- GCM provides both confidentiality and data integrity via its authentication tag.\n    \n- Proper nonce management is critical to prevent replay or forgery attacks."
+				},
+				{
+					"name": "API Authentication",
+					"item": [],
+					"description": "Authentication mechanisms often rely on encryption and decryption to securely verify user identities and protect sensitive information. Below is an outline of how these cryptographic techniques are integrated into authentication workflows.\n\n##### **Purpose**\n\n- **Encryption** ensures that sensitive credentials (e.g., passwords, tokens) are converted into a secure format before transmission or storage.\n    \n- **Decryption** allows the authorized system to convert the encrypted data back to its original format for verification\n    \n\n## **Encryption**\n\nWith a robust encryption key in hand from our key derivation process, we move on to the encryption phase where this key is used to secure our data.\n\n- **Plaintext Data:** The original data that needs to be encrypted. This data is combined with the encryption key to ensure it remains confidential.\n    \n- **Initialization Vector (IV):** A unique sequence used for each encryption operation to ensure that identical plaintext results in different ciphertexts every time.\n    \n- **AES-GCM:** This is the encryption algorithm we use.\n    \n- **Encrypted Data (Ciphertext):** The output of the encryption process, representing the encrypted version of the plaintext.\n    \n- **Authentication Tag**: Generated during the encryption, this tag helps verify the integrity and authenticity of the data upon decryption, ensuring the data has not been tampered with during transmission or storage.\n    \n\n# **How to create a secure Encryption Key?**\n\nThe secure cryptographic key generation starts with the user’s password, processed through the PBKDF2 algorithm using SHA-256 hashing. This method enhances security by deterring brute-force attacks through computationally intensive operations and requires two steps:\n\n## **Salt Generation**\n\nWe use a cryptographically secure random number generator from the Web Cryptography API to create a random salt. This ensures that identical passwords do not produce the same encryption key.\n\n## **Key Derivation**\n\nFirst, we need to prepare the user’s password for cryptographic use by converting it into a format suitable for key derivation. We achieve this using the _importKey()_ function from the Web Cryptography API.\n\n<img src=\"https://content.pstmn.io/5d3306e3-d6bf-4ffb-aba3-d4766d3110a8/aW1hZ2UucG5n\" width=\"1400\" height=\"641\">\n\n###### **Sample encryption Request :**\n\n``` json\n{ \"iv\":\"tpTDwNmFqLei4d4h8ZI2RQ==\",\n\"encryptedPayLoadData\":\"XqbaXuN/dUj283RCHlQkUXSIPMVdbfIHzcVE7FzCe1vyk0983MuJj8YWjId80NM9v30TD5QM2AvFQgKWLHHUdR5pRXUQACOuA2eUAk2zz5JfKhiwnDGH3Kw5LRCgVdv4ru+Oo+j+FUDtoRPYX9muIx5u2V3pptceztbRgUDY73D3KBg=\",\n\"tag\":\"aKm33FjQt6WFzByak62X8g==\",\n\"aad\":\"eyJ0aW1lc3RhbXAiOjE3NDY3OTI4OTU5MzEsInJlZmVyZW5jZV9udW1iZXIiOiJkZGZlNzcyNS02NmQzLTQ5ZTQtYmM1Yi1iNzc2NGRmYzY5MWMifQ==\",\n\"signature\":\"RZ4vRRNpTYBRbW6dEg3EI8T0G9uUpeGROjKtgxu/bMMohF4BJRoR3fjHy5t62qbogkoLanXkaktlS6zz5Ggx/w==\",\n\"referenceNumber\":\"ddfe7725-66d3-49e4-bc5b-b7704dfc691c\"\n}\n\n ```\n\n###### **Sample encryption Response :**\n\n``` json\n{\n\"iv\": \"1EwqX5P65LVUb48p\",\n\"encryptedPayLoadData\": \"miuNv3gr9DGQOwE+…………………….P3jEWKm6xCSETtkId8Z\",\n\"tag\": \"NAE8Zfe4DQ7Y6PsuOMVM0w==\",\n\"aad\":\"eyJ0aW1lc3RhbXAiOjE3NDY1MjQzMzYxOTRsInJlZmVyZW5jZV9udW1iZXIiOiIzYTIxMTA5ZS04NGFhLTQxZDItYTkyMC0yMzIzM2IzNjYzOTcpfQ==\",\n\"referenceNumber\": \"3a21109e-84aa-41d2-a920-23233b166397\"\n}\n\n ```\n\n# **How to decrypt the data with AES-GCM?**\n\nOnce our data is securely encrypted, our next step is to unlock it and retrieve the original information. The decryption process reverses the encryption steps, using the same key, IV, and authentication tag to ensure the data’s integrity has not been compromised.\n\n## **Decryption**\n\nAES ciphertexts can be restored to the initial state by the help of inverse encryption. As we have seen above, the AES uses symmetric encryption, meaning that the secret key used for encryption is the same one used for decryption.\n\nIn the case of AES-256 decryption, the process begins with the inverse round key. The algorithm then reverses every action, namely: shifting rows, byte substitution, and column mixing, until it deciphers the original message.\n\n**Decryption & Validation:**\n\n- Server uses the same key and IV to decrypt the ciphertext.\n    \n- Authentication tag is verified to ensure data integrity.\n    \n- Authentication Decision: If decryption and tag verification succeed, access is granted.\n    \n\n**Sample Decryption Response :**\n\n``` json\n{\n\"pa_id\":\"HPTECHN_00502059\",\n\"mer_business_name\":\"Mylapay\",\n\"mer_legal_name\":\"Mindeed Technologies and Services Private Limited\",\n}\n\n\n ```"
+				}
+			],
+			"description": "**Welcome to the Mylapay API Reference Documentation**\n\nThis comprehensive guide provides developers with all the necessary information to integrate Mylapay’s robust and secure payment processing solutions into their applications, websites, or platforms. Whether you're developing an e-commerce website, a mobile app, or any online service that requires seamless and secure digital transactions, our APIs are designed to help you enable smooth, real-time payments with ease.\n\nMylapay’s APIs support a wide range of payment methods and offer powerful features like transaction monitoring, reconciliation, and analytics—making it easier than ever to build reliable, scalable, and compliant payment solutions.\n\n**How to Use the API Reference**\n\nYou can explore and test most of Mylapay’s APIs using our Sandbox (Test Environment) available in the API Reference section. Simply input values into the form fields for the required parameters and click Try It to see a simulated API response based on your input.\n\nTo ensure a smooth and successful integration, Mylapay recommends the following steps:\n\n- Start with the Integration Guide to understand the complete product setup process, then refer to the API Reference for technical implementation.\n    \n- The API Reference pages allow you to make **mock API calls** using our static test credentials (for General or Integration APIs). You can also view sample code in multiple languages—besides cURL, we provide support in several popular programming languages for faster implementation.\n    \n- Before going live, it is highly recommended to review the **Integration Checklist** (for Checkout, SDK, or other payment flows) to confirm your setup is complete, secure, and production-ready.\n    \n\n## Limitations with API Reference\n\nWhile the Mylapay API Reference offers extensive testing capabilities through the Sandbox (Test Environment), **certain APIs currently do not support test or mock calls**. The following features or API endpoints have **limited or no support** in the sandbox environment:\n\n###### Tokenization APIs\n\n- Generate Token\n    \n- Guest Checkout\n    \n- Get Token\n    \n- Delete Token\n    \n\n###### Onboarding APIs\n\n- Merchant Create\n    \n- Merchant Update\n    \n- Merchant Status\n    \n\n###### Card Payment\n\n- AuthN\n    \n- AuthZ\n    \n- Capture\n    \n- Refund\n    \n- Costing\n    \n- Bin Check\n    \n- Fx rate\n    \n\n🛠️ **Note:** If you need access to mock data, test credentials, or sandbox alternatives for these APIs, please reach out to the **Mylapay Support Team** for assistance."
+		},
+		{
+			"name": "Onboarding",
+			"item": [
+				{
+					"name": "Merchant Create API",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "                {\r\n                \"pa_id\":\"ABC126\",\r\n                \"created_by\": \"ramcharan.s@mylapay.com\",\r\n                \"mer_business_name\":\"Mylapay Newloikyfutdj\",\r\n                \"mer_legal_name\":\"Mindeed mylapay\",\r\n                \"mer_entityType\":\"Private Limited\",\r\n                \"mer_address\":\"Pembroke, No.17/3, IIF, (8C) Second Floor, Shaffe Mohammed Road, Thousand Lights, Chennai, Tamil Nadu 600006\",\r\n                \"mer_settlement_currency\": \"INR\",\r\n                \"mer_country\":\"IND\",\r\n                \"mer_state\":\"Tamilnadu\",\r\n                \"mer_city\":\"chennai\",\r\n                \"mer_zipcode\":\"600006\",\r\n                \"mer_business_indicator\":\"other\",\r\n                \"mer_url\":\"https://www.example.com\",\r\n                \"mer_txn_value\":\"\",\r\n                \"customer_id\":\"customer@gmail.com\",\r\n                \"mer_txn_currency\":\"HNL\",\r\n                \"mer_mcc\":\"6211\",\r\n                \"mer_pa_mid\":\"ABfkufjdafsay2\",    \r\n                \"mer_pa_tid\":\"1894488483654493\",\r\n                \"mer_int_txn_acceptance\":\"Y\",\r\n                \"mer_capture_mode\": \"Auto\",\r\n                \"mer_account_activation_date\": \"2024-12-14\",\r\n                \"mer_daily_txn_volume_limit\": \"1222222222222222\",\r\n                \"mer_per_txn_value_limit\": \"999999999999\",\r\n                \"mer_dcc_service\": \"N\",\r\n                \"mer_multi_cur_conversion_service\": \"N\",\r\n                \"mer_settlement_amount\": \"Net Amount\",\r\n                \"mer_tid_int_txn_acceptance\": \"Y\",\r\n               \"mer_tid_per_txn_value_limit\" : \"100000000000\",\r\n                \"mer_tid_daily_txn_volume_limit\" : \"10000\",\r\n                \"mer_fee_config\":{\r\n                    \"visa_sale_txn_dbcard_equal_or_less_than_2000\":\"0.4\",\r\n                    \"visa_sale_txn_dbcard_greater_than_2000\":\"0.4\",\r\n                    \"visa_sale_txn_crcard_standard_products\":\"0.4\",\r\n                    \"visa_sale_txn_crcard_premiun_products\":\"0.4\",\r\n                    \"visa_sale_txn_crcard_super_premium_products\":\"0.4\",\r\n                    \"visa_sale_txn_crcard_corporate_products\":\"0.4\",\r\n                    \"visa_sale_txn_int_cr_or_db_cards\": \"0.4\",\r\n                    \"visa_sale_txn_dcc_markup\": \"0.4\",\r\n                    \"visa_sale_txn_multi_cc_markup\": \"0.4\",\r\n                    \"visa_refund_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\r\n                    \"visa_refund_txn_dbcard_greater_than_2000\": \"0.4\",\r\n                    \"visa_refund_txn_crcard\": \"0.4\",\r\n                    \"visa_refund_txn_int_cr_or_db_cards\": \"0.4\",\r\n                    \"mc_sale_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\r\n                    \"mc_sale_txn_dbcard_greater_than_2000\": \"0.4\",\r\n                    \"mc_sale_txn_crcard_standard_products\": \"0.4\",\r\n                    \"mc_sale_txn_crcard_premiun_products\": \"0.4\",\r\n                    \"mc_sale_txn_crcard_super_premium_products\": \"0.4\",\r\n                    \"mc_sale_txn_crcard_corporate_products\": \"0.4\",\r\n                    \"mc_sale_txn_int_cr_or_db_cards\": \"0.4\",\r\n                    \"mc_sale_txn_dcc_markup\": \"0.4\",\r\n                    \"mc_sale_txn_multi_cc_markup\": \"0.4\",\r\n                    \"mc_refund_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\r\n                    \"mc_refund_txn_dbcard_greater_than_2000\": \"0.4\",\r\n                    \"mc_refund_txn_crcard\": \"0.4\",\r\n                    \"mc_refund_txn_int_cr_or_db_cards\": \"0.4\",\r\n                    \"rupay_sale_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\r\n                    \"rupay_sale_txn_dbcard_greater_than_2000\": \"0.4\",\r\n                    \"rupay_sale_txn_crcard_standard_products\": \"0.4\",\r\n                    \"rupay_sale_txn_crcard_premiun_products\": \"0.4\",\r\n                    \"rupay_sale_txn_crcard_super_premium_products\": \"0.4\",\r\n                    \"rupay_sale_txn_crcard_corporate_products\": \"0.4\",\r\n                    \"rupay_sale_txn_int_cr_or_db_cards\": \"0.4\",\r\n                    \"rupay_sale_txn_dcc_markup\":\"0.4\",\r\n                    \"rupay_sale_txn_multi_cc_markup\":\"0.4\",\r\n                    \"rupay_refund_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\r\n                    \"rupay_refund_txn_dbcard_greater_than_2000\": \"0.4\",\r\n                    \"rupay_refund_txn_crcard\": \"0.4\",\r\n                    \"rupay_refund_txn_int_cr_or_db_cards\": \"0.4\"\r\n                    }\r\n                }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseurl-nonprod}}/merchant/create",
+							"host": [
+								"{{baseurl-nonprod}}"
+							],
+							"path": [
+								"merchant",
+								"create"
+							]
+						},
+						"description": "The Merchant Create API is used to **register a new merchant** into the platform or card network. It captures essential business, financial, and contact information required for onboarding, compliance, and transaction enablement. This API is the first step in the merchant lifecycle and is designed to support both automated onboarding flows and manual review processes.\n\nOnce successfully created, the merchant is assigned a unique identifier (MID) and can proceed with configuration, verification, and activation.\n\n### **Sample Request Body**\n\n``` json\n  {\n                \"pa_id\":\"MYL958\",\n                \"created_by\": \"ramcharan.s@mylapay.com\",\n                \"mer_business_name\":\"Mylapay New\",\n                \"mer_legal_name\":\"Mindeed mylapay New\",\n                \"mer_entityType\":\"Private Limited\",\n                \"mer_address\":\"Pembroke, No.17/3, IIF, (8C) Second Floor, Shaffe Mohammed Road, Thousand Lights, Chennai, Tamil Nadu 600006\",\n                \"mer_settlement_currency\": \"INR\",\n                \"mer_country\":\"IND\",\n                \"mer_state\":\"Tamilnadu\",\n                \"mer_city\":\"chennai\",\n                \"mer_zipcode\":\"600006\",\n                \"mer_business_indicator\":\"other\",\n                \"mer_url\":\"https://www.example.com\",\n                \"mer_txn_value\":\"\",\n                \"customer_id\":\"customer@gmail.com\",\n                \"mer_txn_currency\":\"HNL\",\n                \"mer_mcc\":\"6211\",\n                \"mer_pa_mid\":\"r8ui3yt\",    \n                \"mer_pa_tid\":\"14223434982320973\",\n                \"mer_int_txn_acceptance\":\"Y\",\n                \"mer_capture_mode\": \"Auto\",\n                \"mer_account_activation_date\": \"2024-12-14\",\n                \"mer_daily_txn_volume_limit\": \"1222222222222222\",\n                \"mer_per_txn_value_limit\": \"999999999999\",\n                \"mer_dcc_service\": \"N\",\n                \"mer_multi_cur_conversion_service\": \"N\",\n                \"mer_settlement_amount\": \"Net Amount\",\n                \"mer_fee_config_flat_rate\":\"0.4\",\n                \"mer_tid_int_txn_acceptance\": \"Y\",\n               \"mer_tid_per_txn_value_limit\" : \"100000000000\",\n                \"mer_tid_daily_txn_volume_limit\" : \"10000\",\n                \"surcharge\":\"39\",\n                \"gst\":\"123456789012345\",\n                \"mer_fee_config\":{\n                    \"visa_sale_txn_dbcard_equal_or_less_than_2000\":\"0.4\",\n                    \"visa_sale_txn_dbcard_greater_than_2000\":\"0.4\",\n                    \"visa_sale_txn_crcard_standard_products\":\"0.4\",\n                    \"visa_sale_txn_crcard_premiun_products\":\"0.4\",\n                    \"visa_sale_txn_crcard_super_premium_products\":\"0.4\",\n                    \"visa_sale_txn_crcard_corporate_products\":\"0.4\",\n                    \"visa_sale_txn_int_cr_or_db_cards\": \"0.4\",\n                    \"visa_sale_txn_dcc_markup\": \"0.4\",\n                    \"visa_sale_txn_multi_cc_markup\": \"0.4\",\n                    \"visa_refund_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\n                    \"visa_refund_txn_dbcard_greater_than_2000\": \"0.4\",\n                    \"visa_refund_txn_crcard\": \"0.4\",\n                    \"visa_refund_txn_int_cr_or_db_cards\": \"0.4\",\n                    \"mc_sale_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\n                    \"mc_sale_txn_dbcard_greater_than_2000\": \"0.4\",\n                    \"mc_sale_txn_crcard_standard_products\": \"0.4\",\n                    \"mc_sale_txn_crcard_premiun_products\": \"0.4\",\n                    \"mc_sale_txn_crcard_super_premium_products\": \"0.4\",\n                    \"mc_sale_txn_crcard_corporate_products\": \"0.4\",\n                    \"mc_sale_txn_int_cr_or_db_cards\": \"0.4\",\n                    \"mc_sale_txn_dcc_markup\": \"0.4\",\n                    \"mc_sale_txn_multi_cc_markup\": \"0.4\",\n                    \"mc_refund_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\n                    \"mc_refund_txn_dbcard_greater_than_2000\": \"0.4\",\n                    \"mc_refund_txn_crcard\": \"0.4\",\n                    \"mc_refund_txn_int_cr_or_db_cards\": \"0.4\",\n                    \"rupay_sale_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\n                    \"rupay_sale_txn_dbcard_greater_than_2000\": \"0.4\",\n                    \"rupay_sale_txn_crcard_standard_products\": \"0.4\",\n                    \"rupay_sale_txn_crcard_premiun_products\": \"0.4\",\n                    \"rupay_sale_txn_crcard_super_premium_products\": \"0.4\",\n                    \"rupay_sale_txn_crcard_corporate_products\": \"0.4\",\n                    \"rupay_sale_txn_int_cr_or_db_cards\": \"0.4\",\n                    \"rupay_sale_txn_dcc_markup\":\"0.4\",\n                    \"rupay_sale_txn_multi_cc_markup\":\"0.4\",\n                    \"rupay_refund_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\n                    \"rupay_refund_txn_dbcard_greater_than_2000\": \"0.4\",\n                    \"rupay_refund_txn_crcard\": \"0.4\",\n                    \"rupay_refund_txn_int_cr_or_db_cards\": \"0.4\"\n                    }\n                }\n\n ```\n\n### **200 : Success**\n\n#### Response **Body**\n\n``` json\n{\n \"result\": {\n \"statusCode\": 200,\n \"status\": \"Success\",\n \"response\": {\n \"mer_mid\": \" XXXXXXXXXXXXXXX\",\n \"mer_tid\": \" XXXXXXXX\",\n \"mer_name\": \"XXXXXXXXX\",\n \"visa_network_status\": \"NA\",\n \"master_network_status\": \"Success\",\n \"rupay_network_status\": \"NA\",\n \"message\": \"Merchant Onboarding Details Added Successfully\"\n }\n },\n \"exception\": null,\n \"pagination\": null\n}\n\n ```\n\n### 400 : Bad Request\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 400,\n        \"status\": \"Error\",\n        \"response\": null\n    },\n    \"exception\": \"Legal Name is Required\",\n    \"pagination\": null\n}\n\n ```\n\n### **500 : Internal Server Error**\n\n#### **Response Body**\n\n``` json\n{\n \"result\":{\n \"statusCode\": \"500\",\n \"status\": \"Failure\",\n \"response\": null\n },\n \"exception\": \"Invalid Request\",\n \"pagination\": null\n}\n\n ```"
+					},
+					"response": []
+				},
+				{
+					"name": "Merchant Update API",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"mer_mid\": \"CPAY00000000077\",\r\n    \"mer_tid\": \"MY770001\",\r\n    \"modified_by\": \"ram.s@mylapay.com\",\r\n    \"mer_business_name\": \"Mylapay uat\",\r\n    \"mer_legal_name\": \"Mindeed 2.0\",\r\n    \"mer_entityType\": \"Private Limited\",\r\n    \"mer_address\": \"Pembrokee, IIFF, (8C) Second Floor, Shaffe Mohammed Road, Thousand Lights, Chennai, Tamil Nadu 600006\",\r\n    \"mer_settlement_currency\": \"INR\",\r\n    \"mer_country\": \"IND\",\r\n    \"mer_state\": \"Delhi\",\r\n    \"mer_city\": \"chennai\",\r\n    \"mer_zipcode\": \"600003\",\r\n    \"mer_business_indicator\": \"other\",\r\n    \"mer_url\": \"https://www.facebook.com\",\r\n    \"mer_txn_value\": \"7\",\r\n    \"customer_id\": \"lews@gmail.com\",\r\n    \"mer_txn_currency\": \"INR\",\r\n    \"mer_mcc\": \"6300\",\r\n    \"mer_int_txn_acceptance\": \"Y\",\r\n    \"mer_capture_mode\": \"Auto\",\r\n    \"mer_account_activation_date\": \"2025-12-21\",\r\n    \"mer_daily_txn_volume_limit\": \"1222222222221222\",\r\n    \"mer_per_txn_value_limit\": \"230000000000\",\r\n    \"mer_dcc_service\": \"Y\",\r\n    \"mer_multi_cur_conversion_service\": \"Y\",\r\n    \"mer_settlement_amount\": \"Gross Amount\",\r\n    \"mer_tid_int_txn_acceptance\": \"N\",\r\n    \"mer_tid_per_txn_value_limit\": \"200000000000\",\r\n    \"mer_tid_daily_txn_volume_limit\": \"100\",\r\n    \"mer_fee_config\": {\r\n        \"visa_sale_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\r\n        \"visa_sale_txn_dbcard_greater_than_2000\": \"0.4\",\r\n        \"visa_sale_txn_crcard_standard_products\": \"0.4\",\r\n        \"visa_sale_txn_crcard_premiun_products\": \"0.4\",\r\n        \"visa_sale_txn_crcard_super_premium_products\": \"0.4\",\r\n        \"visa_sale_txn_crcard_corporate_products\": \"0.4\",\r\n        \"visa_sale_txn_int_cr_or_db_cards\": \"0.4\",\r\n        \"visa_sale_txn_dcc_markup\": \"0.4\",\r\n        \"visa_sale_txn_multi_cc_markup\": \"0.4\",\r\n        \"visa_refund_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\r\n        \"visa_refund_txn_dbcard_greater_than_2000\": \"0.4\",\r\n        \"visa_refund_txn_crcard\": \"0.4\",\r\n        \"visa_refund_txn_int_cr_or_db_cards\": \"0.4\",\r\n        \"mc_sale_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\r\n        \"mc_sale_txn_dbcard_greater_than_2000\": \"0.4\",\r\n        \"mc_sale_txn_crcard_standard_products\": \"0.4\",\r\n        \"mc_sale_txn_crcard_premiun_products\": \"0.4\",\r\n        \"mc_sale_txn_crcard_super_premium_products\": \"0.4\",\r\n        \"mc_sale_txn_crcard_corporate_products\": \"0.4\",\r\n        \"mc_sale_txn_int_cr_or_db_cards\": \"0.4\",\r\n        \"mc_sale_txn_dcc_markup\": \"0.4\",\r\n        \"mc_sale_txn_multi_cc_markup\": \"0.4\",\r\n        \"mc_refund_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\r\n        \"mc_refund_txn_dbcard_greater_than_2000\": \"0.4\",\r\n        \"mc_refund_txn_crcard\": \"0.4\",\r\n        \"mc_refund_txn_int_cr_or_db_cards\": \"0.4\",\r\n        \"rupay_sale_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\r\n        \"rupay_sale_txn_dbcard_greater_than_2000\": \"0.4\",\r\n        \"rupay_sale_txn_crcard_standard_products\": \"0.4\",\r\n        \"rupay_sale_txn_crcard_premiun_products\": \"0.4\",\r\n        \"rupay_sale_txn_crcard_super_premium_products\": \"0.4\",\r\n        \"rupay_sale_txn_crcard_corporate_products\": \"0.4\",\r\n        \"rupay_sale_txn_int_cr_or_db_cards\": \"0.4\",\r\n        \"rupay_sale_txn_dcc_markup\": \"0.4\",\r\n        \"rupay_sale_txn_multi_cc_markup\": \"0.4\",\r\n        \"rupay_refund_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\r\n        \"rupay_refund_txn_dbcard_greater_than_2000\": \"0.4\",\r\n        \"rupay_refund_txn_crcard\": \"0.4\",\r\n        \"rupay_refund_txn_int_cr_or_db_cards\": \"0.5\"\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseurl-nonprod}}/merchant/update",
+							"host": [
+								"{{baseurl-nonprod}}"
+							],
+							"path": [
+								"merchant",
+								"update"
+							]
+						},
+						"description": "The Merchant Update API allows authorized systems to **modify existing merchant details**, such as business information, contact data, bank accounts, or compliance attributes. This API supports both onboarding adjustments and post-activation updates, ensuring that merchant profiles remain accurate, compliant, and up to date.\n\nIt is designed to handle partial updates, validate changes, and trigger downstream workflows like re-verification or audit logging when necessary.\n\n### **Sample Request Body**\n\n``` json\n{\n\"mer_mid\":\"CPAY00000000077\",  \n\"mer_tid\": \"MY770001\",\n\"modified_by\":\"ram.s@mylapay.com\",\n\"mer_business_name\":\"Mylapay uat\",\n\"mer_legal_name\":\"Mindeed 2.0\",\n\"mer_entityType\":\"Private Limited\",\n\"mer_address\":\"Pembrokee, IIFF, (8C) Second Floor, Shaffe Mohammed Road, Thousand Lights, Chennai, Tamil Nadu 600006\",\n\"mer_settlement_currency\": \"INR\",\n\"mer_country\":\"IND\",\n\"mer_state\":\"Delhi\",\n\"mer_city\":\"chennai\",\n\"mer_zipcode\":\"600003\",\n\"mer_business_indicator\":\"other\",\n\"mer_url\":\"https://www.facebook.com\",\n\"mer_txn_value\": \"7\",\n\"customer_id\":\"lews@gmail.com\",\n\"mer_txn_currency\":\"INR\",\n\"mer_mcc\":\"6300\",\n\"mer_int_txn_acceptance\":\"Y\",\n\"mer_capture_mode\": \"Auto\",\n\"mer_account_activation_date\": \"2025-12-20\",\n\"mer_daily_txn_volume_limit\": \"1222222222221222\",\n\"mer_per_txn_value_limit\": \"230000000000\",\n\"mer_dcc_service\": \"Y\",\n\"mer_multi_cur_conversion_service\": \"Y\",\n\"mer_settlement_amount\": \"Gross Amount\",\n\"mer_fee_config_flat_rate\":\"0.4\",\n\"mer_tid_int_txn_acceptance\": \"N\",\n\"mer_tid_per_txn_value_limit\" : \"200000000000\",\n\"mer_tid_daily_txn_volume_limit\" : \"100\",\n\"mer_fee_config\":{\n    \"visa_sale_txn_dbcard_equal_or_less_than_2000\":\"0.4\",\n    \"visa_sale_txn_dbcard_greater_than_2000\":\"0.4\",\n    \"visa_sale_txn_crcard_standard_products\":\"0.4\",\n    \"visa_sale_txn_crcard_premiun_products\":\"0.4\",\n    \"visa_sale_txn_crcard_super_premium_products\":\"0.4\",\n    \"visa_sale_txn_crcard_corporate_products\":\"0.4\",\n    \"visa_sale_txn_int_cr_or_db_cards\": \"0.4\",\n    \"visa_sale_txn_dcc_markup\": \"0.4\",\n    \"visa_sale_txn_multi_cc_markup\": \"0.4\",\n    \"visa_refund_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\n    \"visa_refund_txn_dbcard_greater_than_2000\": \"0.4\",\n    \"visa_refund_txn_crcard\": \"0.4\",\n    \"visa_refund_txn_int_cr_or_db_cards\": \"0.4\",\n    \"mc_sale_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\n    \"mc_sale_txn_dbcard_greater_than_2000\": \"0.4\",\n    \"mc_sale_txn_crcard_standard_products\": \"0.4\",\n    \"mc_sale_txn_crcard_premiun_products\": \"0.4\",\n    \"mc_sale_txn_crcard_super_premium_products\": \"0.4\",\n    \"mc_sale_txn_crcard_corporate_products\": \"0.4\",\n    \"mc_sale_txn_int_cr_or_db_cards\": \"0.4\",\n    \"mc_sale_txn_dcc_markup\": \"0.4\",\n    \"mc_sale_txn_multi_cc_markup\": \"0.4\",\n    \"mc_refund_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\n    \"mc_refund_txn_dbcard_greater_than_2000\": \"0.4\",\n    \"mc_refund_txn_crcard\": \"0.4\",\n    \"mc_refund_txn_int_cr_or_db_cards\": \"0.4\",\n    \"rupay_sale_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\n    \"rupay_sale_txn_dbcard_greater_than_2000\": \"0.4\",\n    \"rupay_sale_txn_crcard_standard_products\": \"0.4\",\n    \"rupay_sale_txn_crcard_premiun_products\": \"0.4\",\n    \"rupay_sale_txn_crcard_super_premium_products\": \"0.4\",\n    \"rupay_sale_txn_crcard_corporate_products\": \"0.4\",\n    \"rupay_sale_txn_int_cr_or_db_cards\": \"0.4\",\n    \"rupay_sale_txn_dcc_markup\":\"0.4\",\n    \"rupay_sale_txn_multi_cc_markup\":\"0.4\",\n    \"rupay_refund_txn_dbcard_equal_or_less_than_2000\": \"0.4\",\n    \"rupay_refund_txn_dbcard_greater_than_2000\": \"0.4\",\n    \"rupay_refund_txn_crcard\": \"0.4\",\n    \"rupay_refund_txn_int_cr_or_db_cards\": \"0.5\"\n    }\n}\n\n ```\n\n#### **200 : Success**\n\n#### **Response Body**\n\n``` json\n{\n \"result\": {\n \"statusCode\": 200,\n \"status\": \"Success\",\n \"response\": {\n \"mer_mid\": \" XXXXXXXXXXXXXXX\",\n \"mer_tid\": \" XXXXXXXX\",\n \" mer_address \": \"XXXXXXXXX\",\n \"message\": \"Merchant Onboarding Details Updated Successfully\"\n }\n\n ```"
+					},
+					"response": []
+				},
+				{
+					"name": "Merchant Status API",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"mer_mid\": \"CPAY00000000021\",\r\n    \"mer_tid\": \"MY210001\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseurl-nonprod}}/merchant/status",
+							"host": [
+								"{{baseurl-nonprod}}"
+							],
+							"path": [
+								"merchant",
+								"status"
+							]
+						},
+						"description": "The **Merchant Status** endpoint returns the current onboarding or operational status of a merchant. It’s typically used to determine if a merchant is active, under review, suspended, or requires further compliance action.\n\n### **Sample Request Body**\n\n``` json\n{\n    \"mer_mid\": \"ABCD00000000012\",\n    \"mer_tid\": \"AB870001\"\n}\n\n ```\n\n### **200 : Success**\n\n#### **Response Body**\n\n``` json\n{\n\"result\": {\n\"statusCode\":200,\n\"status\":\"Success\",\n\"response\": {\n \"pa_id\":\"HPTECHN_00502059\"\n \"mer_mid\":\" XXXXXXXXXXXXXXX\"\n \"status\": \"active\",\n \"details\": {\n \"mer_name\":\"ABC Retailers\",\n \"mer_contact\":support@abcretail.com\n\"rupay_refund_txn_crcard\": \"0.4\",\n\"rupay_refund_txn_int_cr_or_db_cards\": \"0.4\"\n },\n \"exception\": null,\n \"pagination\": null\n}\n\n ```\n\n### **500 : Internal Server Error**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 500,\n        \"status\": \"Failed\",\n        \"response\": null\n    },\n    \"exception\": \"Internal Server Error\",\n    \"pagination\": null\n}\n\n ```"
+					},
+					"response": []
+				}
+			],
+			"description": "This collection of APIs is designed to **streamline the onboarding process for new merchants** onto the platform. It enables secure and efficient registration, verification, and configuration of merchant accounts, ensuring a smooth setup experience from initial application to activation.\n\n<img src=\"https://content.pstmn.io/9c0f2500-cece-494c-81b0-b0fbc12bb36f/aW1hZ2UucG5n\" alt=\"\" height=\"724\" width=\"2084\">\n\nThe following APIs are used to **create, update, and track the onboarding status of merchants** on the platform.\n\n- Merchant Create API\n    \n- Merchant Update API\n    \n- Merchant Status API"
+		},
+		{
+			"name": "Card Payment",
+			"item": [
+				{
+					"name": "Tokenization",
+					"item": [
+						{
+							"name": "Generate Token API",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"pa_id\": \"MYL958\",\n    \"paTxnUniqueId\": \"PA123456722101\",\n    \"cardNetwork\": \"7\",\n    \"transactionType\": \"01\",\n    \"token_type\": \"COFT\",\n    \"message_id\": \"MESS12345\",\n    \"conversation_id\": \"CON1234567\",\n    \"token_requestor_id\": \"12345\",\n    \"token_requestor_gtwy_id\": \"67890\",\n    \"pan_source\": \"KEYENTERED\",\n    \"token_pan_exp_date\": \"092004\",\n    \"auth_ref_no\": \"1234567890\",\n    \"consumer_id\": \"CONS123456\",\n    \"cardHolderInfo\": {\n        \"cardExpiryDate\": \"082026\",\n        \"acctNumber\": \"6071489876543436\",\n        \"CVV\": \"123\"\n    },\n    \"merchantInfo\": {\n        \"merMid\": \"CPAY00000000029\",\n        \"merTid\": \"MY290003\",\n        \"mcc\": \"6300\",\n        \"merName\": \"Mylapay\",\n        \"merCity\": \"Chennai\",\n        \"merState\": \"TN\",\n        \"merLocationPincode\": \"411011\",\n        \"merTelephone\": \"1234567890\",\n        \"merCountryCode\": \"356\"\n    },\n    \"fx\": {\n        \"fxsource\": \"356\",\n        \"fxdestination\": \"840\"\n    }\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{tokenization-nonprod}}/generatetoken",
+									"host": [
+										"{{tokenization-nonprod}}"
+									],
+									"path": [
+										"generatetoken"
+									]
+								},
+								"description": "This API allows secure token generation for cards, enabling safe client-side operations while protecting sensitive card information. Ideal for scenarios involving payment processing, identity verification, or limited-access systems.\n\n### **Sample Request Body**\n\n``` json\n{\n    \"pa_id\": \"MYL958\",\n    \"paTxnUniqueId\": \"PA123456722101\",\n    \"cardNetwork\": \"7\",\n    \"transactionType\": \"01\",\n    \"token_type\": \"COFT\",\n    \"message_id\": \"MESS12345\",\n    \"conversation_id\": \"CON1234567\",\n    \"token_requestor_id\": \"12345\",\n    \"token_requestor_gtwy_id\": \"67890\",\n    \"pan_source\": \"KEYENTERED\",\n    \"token_pan_exp_date\": \"092004\",\n    \"auth_ref_no\": \"1234567890\",\n    \"consumer_id\": \"CONS123456\",\n    \"cardHolderInfo\": {\n        \"cardExpiryDate\": \"082026\",\n        \"acctNumber\": \"6071489876543436\",\n        \"CVV\": \"123\"\n    },\n    \"merchantInfo\": {\n        \"merMid\": \"CPAY00000000029\",\n        \"merTid\": \"MY290003\",\n        \"mcc\": \"6300\",\n        \"merName\": \"Mylapay\",\n        \"merCity\": \"Chennai\",\n        \"merState\": \"TN\",\n        \"merLocationPincode\": \"411011\",\n        \"merTelephone\": \"1234567890\",\n        \"merCountryCode\": \"356\"\n    },\n    \"fx\": {\n        \"fxsource\": \"356\",\n        \"fxdestination\": \"840\"\n    }\n}\n\n ```\n\n### **200 : Success**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 200,\n        \"status\": \"Success\",\n        \"response\": {\n            \"pa_id\": \"MYL958\",\n            \"message_id\": \"b6574541-8111-408d-a0a1-66d5eb1b67cc\",\n            \"request_id\": \"20aff774-5129-4f37-9ab3-c5d4eb9f3f18\",\n            \"token_reference_id\": \"01809287-4e1e-445c-b3a7-f5584b1e25c2\",\n            \"status_code\": \"0000\",\n            \"token_pan_exp_date\": \"092026\",\n            \"pan_reference_id\": \"4726817009798084\",\n            \"token_type\": \"COFT\",\n            \"card_name\": \"Travel\",\n            \"card_type\": \"Debit\",\n            \"card_brand\": \"Rupay\"\n        }\n    },\n\n ```\n\n### **400 : Bad Request**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 400,\n        \"status\": \"false\",\n        \"response\": [\n            \"Message Id is requied\"\n        ]\n    },\n    \"exception\": null,\n    \"pagination\": null\n}\n\n ```\n\n### 404 : Not Found\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 404,\n        \"status\": \"false\",\n        \"response\": null\n    },\n    \"exception\": {\n        \"message\": \"Network Service call Error.\"\n    },\n    \"pagination\": null\n}\n\n ```\n\n### **500 : Internal Server Error**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 500,\n        \"status\": \"false\",\n        \"response\": null\n    },\n    \"exception\": {\n        \"message\": \"Internal Server Error\"\n    },\n    \"pagination\": null\n}\n\n ```"
+							},
+							"response": []
+						},
+						{
+							"name": "Guest Checkout API",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"cardNetwork\": \"7\",\n    \"pa_id\": \"MYL958\",\n    \"paTxnUniqueId\": \"PA123456722101\",\n    \"transactionType\": \"01\",\n    \"token_type\": \"ALT\",\n    \"message_id\": \"MESS12345\",\n    \"conversation_id\": \"CON1234567\",\n    \"token_requestor_id\": \"12345678901\",\n    \"token_requestor_gtwy_id\": \"67890123456\",\n    \"unpredictable_number\": \"12345678\",\n    \"presentation_mode\": \"ECOM\",\n    \"auth_ref_no\": \"1234567890\",\n    \"consumer_id\": \"CONS123456\",\n    \"cardHolderInfo\": {\n        \"cardExpiryDate\": \"082026\",\n        \"acctNumber\": \"6071489876543436\",\n        \"CVV\": \"123\"\n    },\n    \"merchantInfo\": {\n        \"merMid\": \"CPAY00000000029\",\n        \"merTid\": \"MY290003\",\n        \"mcc\": \"6300\",\n        \"merName\": \"Mylapay\",\n        \"merCity\": \"Chennai\",\n        \"merState\": \"TN\",\n        \"merLocationPincode\": \"411011\",\n        \"merTelephone\": \"1234567890\",\n        \"merCountryCode\": \"356\"\n    },\n    \"fx\": {\n        \"fxsource\": \"356\",\n        \"fxdestination\": \"840\"\n    }\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{tokenization-nonprod}}/guestCheckout",
+									"host": [
+										"{{tokenization-nonprod}}"
+									],
+									"path": [
+										"guestCheckout"
+									]
+								},
+								"description": "The Guest Checkout API enables customers to make payments securely without creating an account. It uses encrypted, time-bound tokenization to handle card details, making it ideal for one-time purchases and fast guest experiences.\n\n### **Sample Request Body**\n\n``` json\n{\n    \"cardNetwork\": \"7\",\n    \"pa_id\": \"MYL958\",\n    \"paTxnUniqueId\": \"PA123456722101\",\n    \"transactionType\": \"01\",\n    \"token_type\": \"ALT\",\n    \"message_id\": \"MESS12345\",\n    \"conversation_id\": \"CON1234567\",\n    \"token_requestor_id\": \"12345678901\",\n    \"token_requestor_gtwy_id\": \"67890123456\",\n    \"unpredictable_number\": \"12345678\",\n    \"presentation_mode\": \"ECOM\",\n    \"auth_ref_no\": \"1234567890\",\n    \"consumer_id\": \"CONS123456\",\n    \"cardHolderInfo\": {\n        \"cardExpiryDate\": \"082026\",\n        \"acctNumber\": \"6071489876543436\",\n        \"CVV\": \"123\"\n    },\n    \"merchantInfo\": {\n        \"merMid\": \"CPAY00000000029\",\n        \"merTid\": \"MY290003\",\n        \"mcc\": \"6300\",\n        \"merName\": \"Mylapay\",\n        \"merCity\": \"Chennai\",\n        \"merState\": \"TN\",\n        \"merLocationPincode\": \"411011\",\n        \"merTelephone\": \"1234567890\",\n        \"merCountryCode\": \"356\"\n    },\n    \"fx\": {\n        \"fxsource\": \"356\",\n        \"fxdestination\": \"840\"\n    }\n}\n\n ```\n\n### **200 : Success**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 200,\n        \"status\": \"Success\",\n        \"response\": {\n            \"pa_id\": \"MYL958\",\n            \"message_id\": \"9a951c53-dc0d-4925-8e76-6ac000c4d0d5\",\n            \"status_code\": \"0000\",\n            \"request_id\": \"898e040e-86ac-46c2-9e70-529cad4cf268\",\n            \"token_reference_id\": \"e5520221-7b17-4872-98f0-79111df900e1\",\n            \"token_pan_exp_date\": \"092026\",\n            \"token_data\": {\n                \"token_pan\": \"2964224351556381\",\n                \"token_exp_date\": \"082026\"\n            },\n            \"tavv\": \"cac8b971-e48d-472d-9ed5-b78b92d06c7b\",\n            \"pan_reference_id\": \"7490610964276749\",\n            \"card_name\": \"Travel\",\n            \"card_type\": \"Debit\",\n            \"card_brand\": \"AMEX\"\n        }\n    },\n    \"exception\": null,\n    \"pagination\": null\n}\n\n ```\n\n### **400 : Bad Request**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 400,\n        \"status\": \"false\",\n        \"response\": [\n            \"Message Id is requied\"\n        ]\n    },\n    \"exception\": null,\n    \"pagination\": null\n}\n\n ```\n\n### 404 : Not Found\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 404,\n        \"status\": \"false\",\n        \"response\": null\n    },\n    \"exception\": {\n        \"message\": \"Network Service call Error.\"\n    },\n    \"pagination\": null\n}\n\n ```\n\n### **500 : Internal Server Error**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 500,\n        \"status\": \"false\",\n        \"response\": null\n    },\n    \"exception\": {\n        \"message\": \"Internal Server Error\"\n    },\n    \"pagination\": null\n}\n\n ```"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Token API",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"pa_id\": \"MYL958\",\n    \"paTxnUniqueId\": \"PA123456722101\",\n    \"cardNetwork\": \"4\",\n    \"transactionType\": \"01\",\n    \"token_type\": \"GC\",\n    \"message_id\": \"MESS12345\",\n    \"conversation_id\": \"CON1234567\",\n    \"token_requestor_id\": \"12345678901\",\n    \"token_requestor_gtwy_id\": \"67890123456\",\n    \"unpredictable_number\": \"12345678\",\n    \"token_reference_id\": \"TOK123456\",\n    \"token_pan_exp_date\": \"092004\",\n    \"merchantInfo\": {\n        \"merMid\": \"CPAY00000000029\",\n        \"merTid\": \"MY290003\",\n        \"mcc\": \"6300\",\n        \"merName\": \"Mylapay\",\n        \"merCity\": \"Chennai\",\n        \"merState\": \"TN\",\n        \"merLocationPincode\": \"411011\",\n        \"merTelephone\": \"1234567890\",\n        \"merCountryCode\": \"356\"\n    }\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{tokenization-nonprod}}/gettoken",
+									"host": [
+										"{{tokenization-nonprod}}"
+									],
+									"path": [
+										"gettoken"
+									]
+								},
+								"description": "This API retrieves a previously generated card token based on identifying parameters. It's helpful for systems that cache tokenized card data and need to validate or reuse tokens for authorized operations.\n\n### **Sample Request Body**\n\n``` json\n{\n    \"pa_id\": \"MYL958\",\n    \"paTxnUniqueId\": \"PA123456722101\",\n    \"cardNetwork\": \"4\",\n    \"transactionType\": \"01\",\n    \"token_type\": \"GC\",\n    \"message_id\": \"MESS12345\",\n    \"conversation_id\": \"CON1234567\",\n    \"token_requestor_id\": \"12345678901\",\n    \"token_requestor_gtwy_id\": \"67890123456\",\n    \"unpredictable_number\": \"12345678\",\n    \"token_reference_id\": \"TOK123456\",\n    \"token_pan_exp_date\": \"092004\",\n    \"merchantInfo\": {\n        \"merMid\": \"CPAY00000000029\",\n        \"merTid\": \"MY290003\",\n        \"mcc\": \"6300\",\n        \"merName\": \"Mylapay\",\n        \"merCity\": \"Chennai\",\n        \"merState\": \"TN\",\n        \"merLocationPincode\": \"411011\",\n        \"merTelephone\": \"1234567890\",\n        \"merCountryCode\": \"356\"\n    }\n}\n\n ```\n\n### **200 : Success**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 200,\n        \"status\": \"Success\",\n        \"response\": {\n            \"pa_id\": \"MYL958\",\n            \"message_id\": \"9c73b127-bd1b-49de-952b-6a611ed89cf2\",\n            \"status_code\": \"0000\",\n            \"request_id\": \"600a1e3c-2113-4d48-86fa-2e3b38bd2170\",\n            \"token_reference_id\": \"70774d92-0bb9-4ab5-9a77-6b577f9cd0e8\",\n            \"token_pan_exp_date\": \"092026\",\n            \"token_data\": {\n                \"token_pan\": \"6123432112344321\",\n                \"token_exp_date\": \"2403\"\n            },\n            \"tavv\": \"886c7e6d-a009-488d-8eb3-fbcd0f6f0049\",\n            \"pan_reference_id\": \"4444555566667777\",\n            \"card_name\": \"Travel\",\n            \"card_type\": \"Credit\",\n            \"card_brand\": \"RUPAY\"\n        }\n    },\n    \"exception\": null,\n    \"pagination\": null\n}\n\n ```\n\n### **400 : Bad Request**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 400,\n        \"status\": \"false\",\n        \"response\": [\n            \"Message Id is requied\"\n        ]\n    },\n    \"exception\": null,\n    \"pagination\": null\n}\n\n ```\n\n### 404 : Not Found\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 404,\n        \"status\": \"false\",\n        \"response\": null\n    },\n    \"exception\": {\n        \"message\": \"Network Service call Error.\"\n    },\n    \"pagination\": null\n}\n\n ```\n\n### **500 : Internal Server Error**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 500,\n        \"status\": \"false\",\n        \"response\": null\n    },\n    \"exception\": {\n        \"message\": \"Internal Server Error\"\n    },\n    \"pagination\": null\n}\n\n ```"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Token API",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"cardNetwork\": \"7\",\n    \"pa_id\": \"MYL958\",\n    \"paTxnUniqueId\": \"PA123456722101\",\n    \"transactionType\": \"01\",\n    \"token_type\": \"GC\",\n    \"message_id\": \"MESS12345\",\n    \"conversation_id\": \"CON1234567\",\n    \"token_requestor_id\": \"12345678901\",\n    \"token_requestor_gtwy_id\": \"67890123456\",\n    \"token_reference_id\": \"TOK123456\",\n    \"lifecycle_management_action\": \"ABC45678990\",\n    \"resquest_reason\": \"ASD677889000\",\n    \"merchantInfo\": {\n        \"merMid\": \"CPAY00000000029\",\n        \"merTid\": \"MY290003\",\n        \"mcc\": \"6300\",\n        \"merName\": \"Mylapay\",\n        \"merCity\": \"Chennai\",\n        \"merState\": \"TN\",\n        \"merLocationPincode\": \"411011\",\n        \"merTelephone\": \"1234567890\",\n        \"merCountryCode\": \"356\"\n    }\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{tokenization-nonprod}}/deletetoken",
+									"host": [
+										"{{tokenization-nonprod}}"
+									],
+									"path": [
+										"deletetoken"
+									]
+								},
+								"description": "This API allows you to securely delete a previously generated card token, revoking its usage for any future transactions. It's typically employed in token lifecycle management, customer offboarding, or compliance workflows.\n\n### **Sample Request Body**\n\n``` json\n{\n    \"cardNetwork\": \"7\",\n    \"pa_id\": \"MYL958\",\n    \"paTxnUniqueId\": \"PA123456722101\",\n    \"transactionType\": \"01\",\n    \"token_type\": \"GC\",\n    \"message_id\": \"MESS12345\",\n    \"conversation_id\": \"CON1234567\",\n    \"token_requestor_id\": \"12345678901\",\n    \"token_requestor_gtwy_id\": \"67890123456\",\n    \"token_reference_id\": \"TOK123456\",\n    \"lifecycle_management_action\": \"ABC45678990\",\n    \"resquest_reason\": \"ASD677889000\",\n    \"merchantInfo\": {\n        \"merMid\": \"CPAY00000000029\",\n        \"merTid\": \"MY290003\",\n        \"mcc\": \"6300\",\n        \"merName\": \"Mylapay\",\n        \"merCity\": \"Chennai\",\n        \"merState\": \"TN\",\n        \"merLocationPincode\": \"411011\",\n        \"merTelephone\": \"1234567890\",\n        \"merCountryCode\": \"356\"\n    }\n}\n\n ```\n\n### **200 : Success**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 200,\n        \"status\": \"Success\",\n        \"response\": {\n            \"pa_id\": \"MYL958\",\n            \"message_id\": \"886af3af-513e-4eed-ab52-7cfda75be35b\",\n            \"status_code\": \"0000\",\n            \"request_id\": \"67ba4733-0554-4f97-9da9-de3d851ead8e\",\n            \"token_reference_id\": \"6f66aa98-28cd-4ca9-878e-94c0a68234f1\",\n            \"lifecycle_management_action\": \"DELETE_TOKEN\"\n        }\n    },\n    \"exception\": null,\n    \"pagination\": null\n}\n\n ```\n\n### **400 : Bad Request**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 400,\n        \"status\": \"false\",\n        \"response\": [\n            \"Message Id is requied\"\n        ]\n    },\n    \"exception\": null,\n    \"pagination\": null\n}\n\n ```\n\n### 404 : Not Found\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 404,\n        \"status\": \"false\",\n        \"response\": null\n    },\n    \"exception\": {\n        \"message\": \"Network Service call Error.\"\n    },\n    \"pagination\": null\n}\n\n ```\n\n### **500 : Internal Server Error**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 500,\n        \"status\": \"false\",\n        \"response\": null\n    },\n    \"exception\": {\n        \"message\": \"Internal Server Error\"\n    },\n    \"pagination\": null\n}\n\n ```"
+							},
+							"response": []
+						}
+					],
+					"description": "**Tokenization** is a data security technique where sensitive information (like credit card numbers, account credentials, or personal identifiers) is replaced with a non-sensitive equivalent—called a **token**—that has no exploitable value on its own. Unlike encryption, tokens are not reversible without access to the original mapping system.\n\n<img src=\"https://content.pstmn.io/1f8b6742-999b-48da-ae67-ab6e26100fcd/aW1hZ2UucG5n\" width=\"840\" height=\"461\">\n\nThe following APIs are used to **securely manage card data and enable seamless payment experiences** through tokenization and card-on-file workflows.\n\n- Generate Token API\n    \n- Guest Checkout API\n    \n- Get Token API\n    \n- Delete Token API"
+				},
+				{
+					"name": "Mylapay Secure",
+					"item": [
+						{
+							"name": "AuthN API",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "Cookie",
+										"value": "AWSALBTG=WTcy+/nPPXOHyvcNbvc52csKuZtqwIk+HgHuCLa+RoWIhrOe9XgYq3kYaWlftvcIRKFwDAJFakcWVnnZzP7jOgOx6st6OM4u+COdC4ZjjW21YD4MVr2cAX6WSZbM5UyL8HWDK1Osg8E6mQd6BEEPLl+eoD03xuqQNsNV2RCyfxEm; AWSALBTGCORS=WTcy+/nPPXOHyvcNbvc52csKuZtqwIk+HgHuCLa+RoWIhrOe9XgYq3kYaWlftvcIRKFwDAJFakcWVnnZzP7jOgOx6st6OM4u+COdC4ZjjW21YD4MVr2cAX6WSZbM5UyL8HWDK1Osg8E6mQd6BEEPLl+eoD03xuqQNsNV2RCyfxEm",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"pa_id\":\"MYL958\",\n    \"paTxnUniqueId\": \"PA1234567001299\",\n    \"cardNetwork\": \"2\",\n    \"tokenType\": \"01\",\n    \"transactionType\": \"01\",\n    \"cardHolderInfo\": {\n        \"acctNumber\": \"5443650022408906\",\n        \"cardExpiryDate\": \"2911\"\n    },\n    \"browserInfo\": {\n        \"browserJavascriptEnabled\": true,\n        \"browserJavaEnabled\": true,\n        \"browserAcceptHeader\": \"text/html,application/xhtml+xml,app/xml;q=0.9,*/*;q=0.8\",\n        \"browserIP\": \"1.12.123.255\",\n        \"browserLanguage\": \"en\",\n        \"browserColorDepth\": \"24\",\n        \"browserScreenHeight\": \"1920\",\n        \"browserScreenWidth\": \"1080\",\n        \"browserTZ\": \"-60\",\n        \"browserUserAgent\": \"Browser/5.0(WindowsNT6.1;x64;rv:7.0)Geck20100101Firox /47.0\"\n    },\n    \"merchantInfo\": {\n        \"merMid\": \"CPAY00000000029\",\n        \"merTid\": \"MY290003\",\n        \"mcc\": \"6300\",\n        \"merCountryCode\": \"356\",\n        \"merName\": \"Mylapay New\"\n    },\n    \"transactionInfo\": {\n        \"transactionAmount\": \"000000000100\",\n        \"utcTransactionDateTime\": \"20250721061000\",\n        \"transactionCurrencyCode\": \"356\"\n    },\n    \"notificationURL\": \"https://transactions.mylapay.com/mylapay/v1/identity/notification\",\n    \"additionalDataReq \": \"Optional additional data\",\n    \"posEntryMode\": \"01\"\n}\n ",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{threed-secure}}/authn/req",
+									"host": [
+										"{{threed-secure}}"
+									],
+									"path": [
+										"authn",
+										"req"
+									]
+								},
+								"description": "The Authentication API for the card network provides a secure gateway for validating the identity of entities interacting with the network—such as **issuers**, **acquirers**, **merchants**, and **service providers**. It ensures that only authorized participants can access transaction services, submit requests, or retrieve sensitive data.\n\nThis API is foundational to the card network’s **security architecture**, enabling trusted communication and enforcing access control across all integrated systems.\n\n### **Sample Request Body**\n\n``` json\n{\n    \"pa_id\" : \"ABC123\",\n    \"paTxnUniqueId\":\"AB123456722101\",\n    \"cardNetwork\":\"7\",\n    \"transactionType\":\"01\",\n    \"tokenType\": \"01\",\n    \"cardHolderInfo\" : {\n        \"cardExpiryDate\": \"082026\",\n        \"acctNumber\":\"XXXXXXXXXXXXXXXX\",\n        \"token_authenticationValue\":\"AJgBASOERgAgIwYgEwcpAAAAAAE\"\n    },\n    \"browserInfo\": {\n        \"browserIP\": \"203.11.11.11\",\n        \"browserLanguage\": \"EN\",\n        \"browserAcceptHeader\":\"text/html,application/xhtml+xml,application/xml\",\n        \"browserUserAgent\": \"Mozilla/5.0 (Windows NT 6.3; Win64; x64)AppleWebKit/537.36(KHTML,likeGecko)Chrome/61.0.3163.100 Safari/537.36\"\n    },\n    \"merchantInfo\" : {\n        \"merMid\": \"ABCD00000000078\",\n        \"merTid\": \"AB780003\",\n        \"mcc\":\"8211\",\n        \"merName\": \"Mindeed\",\n        \"merCity\" : \"Chennai\",\n        \"merState\" : \"TN\",\n        \"merLocationPincode\": \"411011\",\n        \"merTelephone\": \"1234567890\",\n        \"merCountryCode\": \"356\"\n    },\n    \"transactionInfo\" : {\n        \"transactionAmount\": \"000000000100\",\n        \"transactionCurrencyCode\": \"356\",\n        \"localTransactionDateTime\": \"250508120700\"\n    },\n    \"notificationURL\": \"https://switchrupay.mylapay-dev.com/mylapay/authN/returnurl\",\n    \"additionalDataReq\": \"0130102DC0203RBL\",\n    \"sessionid\": \"1b1ed3e5-9f63-403d-b295-726d2950d5ce\",\n    \"posEntryMode\":\"01\"\n}\n\n ```\n\n### **200 : Success**\n\n#### **Response Body**\n\n``` json\n{\n    \"pa_id\": \"MYL958\",\n    \"paTxnUniqueId\": \"PA1234567001299\",\n    \"authenticationId\": \"fc186295-f271-41be-83b6-082557c759f6\",\n    \"transStatus\": \"C\",\n    \"challengeForm\": \"<html><body><form id=redirectForm action=https://sandbox-nonprod.mylapay.com/otp method=post><input type=hidden name=creq value=eyJhY3NUcmFuc0lEIjoiYzYwNGUwMWYtZDZmYS00YzQ1LTlhNTctOTdmZmM1OTc4YWEwIiwibWVzc2FnZVR5cGUiOiJDUmVxIiwibWVzc2FnZVZlcnNpb24iOiIyLjIuMCIsImNoYWxsZW5nZVdpbmRvd1NpemUiOiIwNSJ9></form><script>document.getElementById(&#x27;redirectForm&#x27;).submit()</script></body></html>\",\n    \"additionalDataRes\": \"\"\n}\n\n ```\n\n### **400 : Bad Request**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 400,\n        \"status\": \"Error\",\n        \"response\": null\n    },\n    \"exception\": {\n        \"message\": [\n            \"PA Transaction Unique Id is required\",\n            \"Merchant MID is required\",\n            \"Capture Date Time is required\",\n            \"Additional Data Request is required\"\n        ]\n    },\n    \"pagination\": null\n}\n\n ```\n\n### **500 : Internal Server Error**\n\n#### **Response Body**\n\n``` json\n{\n   \"result\":{\n      \"statusCode\": \"500\",\n      \"status\": \"Failure\",\n      \"response\": null\n   },\n   \"exception\": \"Internal Server Error\",\n   \"pagination\": null\n}\n\n ```"
+							},
+							"response": []
+						}
+					],
+					"description": "## 🔐 Mylapay Secure (AuthN)\n\n**Mylapay Secure** is the authentication layer responsible for validating the identity of the cardholder before a transaction is authorized. It leverages secure protocols such as **EMV 3D Secure**, OTP verification, and biometric checks to prevent fraudulent transactions and ensure compliance with regulatory requirements.\n\nAuthentication is a **critical step** in the card payment flow, especially for card-not-present (CNP) transactions where the risk of fraud is higher.\n\n### 🔁 Flow Overview\n\n1. **Trigger Authentication**  \n      \n    When a transaction is initiated, the system triggers Mylapay Secure to start the authentication flow.\n    \n2. **Challenge/Response**  \n      \n    Depending on the risk score or issuer settings, a challenge (OTP, biometric, etc.) may be presented to the user.\n    \n3. **Authentication Decision**  \n      \n    The result (Success/Failure) is returned to the platform, which determines whether to proceed with authorization.  \n    \n\n### 📦 Key API Involved\n\n- **Mylapay AuthN API**  \n      \n    Initiates and manages the user authentication flow. It handles both frictionless and challenge-based authentications."
+				},
+				{
+					"name": "Switch",
+					"item": [
+						{
+							"name": "AuthZ API",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "authorization",
+										"value": "Myladev_623748sdf_MYLAPAY"
+									},
+									{
+										"key": "ENTITY_I",
+										"value": ""
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"pa_id\": \"COMPUTE_31227918\",\n    \"paTxnUniqueId\": \"PA12567890\",\n    \"uniqueTxnId\": \"e1dc0861-96ae-4c00-b979-f6d26a390e70\",\n    \"tokenType\": \"01\",\n    \"authenticationId\": \"c2051752-37d9-4d33-9935-8211a84d28cd\",\n    \"transStatus\": \"Y\",\n    \"acctNumber\": \"2223000890000018\",\n    \"authenticationValue\": \"kGJlvkeNggtKiguue7IA8zVhIttj\",\n    \"TAVV\": \"0000000000000000000000000000\",\n    \"cardExpiryDate\": \"2512\",\n    \"cardNetwork\": \"2\",\n    \"transactionType\": \"01\",\n    \"transactionAmount\": \"000000000100\",\n    \"localTransactionDateTime\": \"0804124000\",\n    \"mcc\": \"6300\",\n    \"merCurrencyCode\": \"356\",\n    \"merMid\": \"CPAY00000000005\",\n    \"merTid\": \"MY050001\",\n    \"merPaMid\": \"ABSF4U12458\",\n    \"merPaTid\": \"1342495857\",\n    \"merName\": \"Mindeed\",\n    \"merCity\": \"Chennai\",\n    \"merState\": \"TN\",\n    \"merCountryCode\": \"356\",\n    \"merLocationPincode\": \"600089\",\n    \"transactionCurrencyCode\": \"356\",\n    \"posEntryMode\": \"01\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{transaction-switch-nonprod}}/auth/data",
+									"host": [
+										"{{transaction-switch-nonprod}}"
+									],
+									"path": [
+										"auth",
+										"data"
+									]
+								},
+								"description": "The Authorization API (AuthZ) for the card network governs **access control** across all integrated systems and services. It ensures that authenticated entities—such as **issuers**, **acquirers**, **merchants**, and **third-party providers**—can only perform actions and access data that they are explicitly permitted to.\n\nThis API is a critical layer in the card network’s **security and compliance framework**, enabling **fine-grained permission management**, **role-based access**, and **dynamic policy enforcement**.\n\n### **Sample Request Body**\n\n``` json\n{\n    \"pa_id\" : \"ABC123\",\n    \"paTxnUniqueId\":\"AB123456722101\",\n    \"cardNetwork\":\"7\",\n    \"transactionType\":\"01\",\n    \"tokenType\": \"01\",\n    \"cardHolderInfo\" : {\n        \"cardExpiryDate\": \"082026\",\n        \"acctNumber\":\"XXXXXXXXXXXXXXXX\",\n        \"token_authenticationValue\":\"AJgBASOERgAgIwYgEwcpAAAAAAE\"\n    },\n    \"browserInfo\": {\n        \"browserIP\": \"203.11.11.11\",\n        \"browserLanguage\": \"EN\",\n        \"browserAcceptHeader\":\"text/html,application/xhtml+xml,application/xml\",\n        \"browserUserAgent\": \"Mozilla/5.0 (Windows NT 6.3; Win64; x64)AppleWebKit/537.36(KHTML,likeGecko)Chrome/61.0.3163.100 Safari/537.36\"\n    },\n    \"merchantInfo\" : {\n        \"merMid\": \"ABCD00000000078\",\n        \"merTid\": \"AB780003\",\n        \"mcc\":\"8211\",\n        \"merName\": \"Mindeed\",\n        \"merCity\" : \"Chennai\",\n        \"merState\" : \"TN\",\n        \"merLocationPincode\": \"411011\",\n        \"merTelephone\": \"1234567890\",\n        \"merCountryCode\": \"356\"\n    },\n    \"transactionInfo\" : {\n        \"transactionAmount\": \"000000000100\",\n        \"transactionCurrencyCode\": \"356\",\n        \"localTransactionDateTime\": \"250508120700\"\n    },\n    \"notificationURL\": \"https://switchrupay.mylapay-dev.com/mylapay/authN/returnurl\",\n    \"additionalDataReq\": \"0130102DC0203RBL\",\n    \"sessionid\": \"1b1ed3e5-9f63-403d-b295-726d2950d5ce\",\n    \"posEntryMode\":\"01\"\n}\n\n ```\n\n### **200 : Success**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 200,\n        \"status\": \"Success\",\n        \"response\": {\n            \"message\": \"Authorized successfully\",\n            \"paId\": \"COMPUTE_31227918\",\n            \"paTxnUniqueId\": \"PA12567890\",\n            \"uniqueTxnId\": \"e1dc0861-96ae-4c00-b979-f6d26a390e70\",\n            \"merName\": \"Mindeed\",\n            \"merMid\": \"CPAY00000000005\",\n            \"merTid\": \"MY050001\",\n            \"rrn\": \"526308008518\",\n            \"transactionAmount\": \"000000000100\",\n            \"transactionDateTime\": \"0920143153\",\n            \"transactionCurrencyCode\": \"356\",\n            \"additionalDataRes\": \"\"\n        }\n    },\n    \"exception\": null,\n    \"pagination\": null\n}\n\n ```\n\n### **400 : Bad Request**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 400,\n        \"status\": \"Error\",\n        \"response\": null\n    },\n    \"exception\": {\n        \"message\": [\n            \"PA Transaction Unique Id is required\",\n            \"Merchant MID is required\",\n            \"Capture Date Time is required\",\n            \"Additional Data Request is required\"\n        ]\n    },\n    \"pagination\": null\n}\n\n ```\n\n### **500 : Internal Server Error**\n\n#### **Response Body**\n\n``` json\n{\n   \"result\":{\n      \"statusCode\": \"500\",\n      \"status\": \"Failure\",\n      \"response\": null\n   },\n   \"exception\": \"Internal Server Error\",\n   \"pagination\": null\n}\n\n ```"
+							},
+							"response": []
+						},
+						{
+							"name": "Capture API",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "authorization",
+										"value": "Myladev_623748sdf_MYLAPAY"
+									},
+									{
+										"key": "ENTITY_I",
+										"value": ""
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"pa_id\":\"MIN948\",\n    \"paTxnUniqueId\": \"PA1234567001299\",\n    \"captureType\": \"sale\",\n    \"uniqueTxnId\": \"1234a4e4-5ff0-f6f8-831d-a775c994f570\",\n    \"cardNetwork\": \"1\",\n        \"merName\": \"Mindeed\",\n        \"merMid\": \"CPAY00000000009\",\n        \"merTid\": \"MY010009\",\n        \"merPaMid\": \"ABCD133333\",\n        \"merPaTid\": \"EFG7264494\",\n        \"mcc\": \"6300\",\n        \"captureAmount\": \"000000000100\",\n        \"transactionCurrencyCode\": \"356\",\n        \"originalTxnAmount\": \"000000000100\",\n        \"rrn\": \"514106472363\",\n        \"authCode\": \"454105\",\n        \"captureDateTime\":\"20250920160800\",\n\n    \"additionalDataReq\": \"0130102DC0203RBL\"\n\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{bin}}/switch/capture",
+									"host": [
+										"{{bin}}"
+									],
+									"path": [
+										"switch",
+										"capture"
+									]
+								},
+								"description": "The Capture API is used to **finalize a previously authorized transaction**, transferring funds from the cardholder’s account to the merchant. It marks the point at which the merchant confirms the goods or services have been delivered and requests settlement.\n\nThis API is essential in **two-step payment flows**, where authorization and capture are decoupled to allow for order fulfillment, fraud checks, or partial billing.\n\n### **Sample Request Body**\n\n``` json\n{\n    \"pa_id\":\"ABC948\",\n    \"paTxnUniqueId\": \"AC1234567001299\",\n    \"captureType\": \"sale\",\n    \"uniqueTxnId\": \"1234a4e4-5ff0-f6f8-831d-a775c994f102\",\n    \"cardNetwork\": \"1\",\n        \"merName\": \"Mindeed\",\n        \"merMid\": \"ABCD00000000009\",\n        \"merTid\": \"AB010009\",\n        \"merPaMid\": \"ABCD133333\",\n        \"merPaTid\": \"EFG7264494\",\n        \"mcc\": \"1300\",\n        \"captureAmount\": \"000000000100\",\n        \"transactionCurrencyCode\": \"356\",\n        \"originalTxnAmount\": \"000000000100\",\n        \"rrn\": \"517905944959\",\n        \"authCode\": \"076267\",\n        \"captureDateTime\":\"20250729131200\",\n    \"additionalDataReq\": \"0130102DC0203RBL\"\n}\n\n ```\n\n### **200 : Success**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 200,\n        \"status\": \"Success\",\n        \"response\": {\n            \"message\": \"Sale captured successfully\",\n            \"paId\": \"MIN948\",\n            \"uniqueTxnId\": \"1234a4e4-5ff0-f6f8-831d-a775c994f570\",\n            \"captureType\": \"sale\",\n            \"merName\": \"Mindeed\",\n            \"merMid\": \"CPAY00000000009\",\n            \"merTid\": \"MY010009\",\n            \"merPaMid\": \"ABCD133333\",\n            \"merPaTid\": \"EFG7264494\",\n            \"mcc\": \"6300\",\n            \"captureAmount\": \"000000000100\",\n            \"transactionCurrencyCode\": \"356\",\n            \"originalTxnAmount\": \"000000000100\",\n            \"rrn\": \"514106472363\",\n            \"authCode\": \"454105\",\n            \"cardNetwork\": \"1\",\n            \"additionalDataRes\": \"0130102DC0203RBL\"\n        }\n    },\n    \"exception\": null,\n    \"pagination\": null\n}\n\n ```\n\n### **400 : Bad Request**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 400,\n        \"status\": \"Error\",\n        \"response\": null\n    },\n    \"exception\": {\n        \"message\": [\n            \"PA Transaction Unique Id is required\",\n            \"Merchant MID is required\",\n            \"Capture Date Time is required\",\n            \"Additional Data Request is required\"\n        ]\n    },\n    \"pagination\": null\n}\n\n ```\n\n### **500 : Internal Server Error**\n\n#### **Response Body**\n\n``` json\n{\n   \"result\":{\n      \"statusCode\": \"500\",\n      \"status\": \"Failure\",\n      \"response\": null\n   },\n   \"exception\": \"Internal Server Error\",\n   \"pagination\": null\n}\n\n ```"
+							},
+							"response": []
+						},
+						{
+							"name": "Refund API",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"pa_id\":\"MIN948\",\r\n    \"captureType\": \"refund\",\r\n    \"uniqueTxnId\": \"1234a4e4-5ff0-f6f8-831d-a775c994f570\",\r\n        \"paTxnUniqueId\": \"PA1234567001299\",\r\n    \"refundType\": \"full\",\r\n    \"cardNetwork\": \"1\",\r\n        \"merName\": \"Mindeed\",\r\n        \"merMid\": \"CPAY00000000005\",\r\n        \"merTid\": \"MY050001\",\r\n        \"merPaMid\": \"ABSF4U12458\",\r\n        \"merPaTid\": \"1342495857\",\r\n        \"mcc\": \"6300\",\r\n        \"captureDateTime\": \"20250920163200\",\r\n        \"captureAmount\": \"000000000100\",\r\n        \"transactionCurrencyCode\": \"356\",\r\n        \"originalTxnAmount\": \"000000000100\",\r\n        \"rrn\": \"514106472363\",\r\n        \"authCode\": \"076267\",\r\n        \"totalPreviousRefundAmount\": \"000000000000\",\r\n    \"additionalDataReq\": \"0130102DC0203RBL\"\r\n}\r\n ",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{bin}}/switch/capture",
+									"host": [
+										"{{bin}}"
+									],
+									"path": [
+										"switch",
+										"capture"
+									]
+								},
+								"description": "The Refund API enables merchants or authorized entities to **initiate a reversal of a previously captured transaction**, returning funds to the cardholder. It is a critical component of post-transaction operations, supporting customer service, dispute resolution, and compliance with consumer protection standards.\n\nRefunds can be **full or partial**, and are typically processed against a successful capture or settlement.\n\n### **Sample Request Body**\n\n``` json\n{\n    \"pa_id\":\"ABC948\",\n    \"captureType\": \"refund\",\n    \"uniqueTxnId\": \"1234a4e4-5ff0-f6f8-831d-a775c994f102\",\n        \"paTxnUniqueId\": \"AB1234567001299\",\n    \"refundType\": \"full\",\n    \"cardNetwork\": \"1\",\n        \"merName\": \"Mindeed\",\n        \"merMid\": \"ABCD00000000005\",\n        \"merTid\": \"AB050001\",\n        \"merPaMid\": \"ABSF4U12458\",\n        \"merPaTid\": \"1342495857\",\n        \"mcc\": \"2300\",\n        \"captureDateTime\": \"20250729131300\",\n        \"captureAmount\": \"000000000100\",\n        \"transactionCurrencyCode\": \"356\",\n        \"originalTxnAmount\": \"000000000100\",\n        \"rrn\": \"517905944959\",\n        \"authCode\": \"076267\",\n        \"totalPreviousRefundAmount\": \"000000000000\",\n    \"additionalDataReq\": \"0130102DC0203RBL\"\n}\n\n ```\n\n### **200 : Success**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 200,\n        \"status\": \"Success\",\n        \"response\": {\n            \"message\": \"Refund captured successfully\",\n            \"paId\": \"MIN948\",\n            \"refundId\": \"b92cada6-bde6-4067-b93c-3603d34cb51f\",\n            \"uniqueTxnId\": \"1234a4e4-5ff0-f6f8-831d-a775c994f570\",\n            \"captureType\": \"refund\",\n            \"merName\": \"Mindeed\",\n            \"merMid\": \"CPAY00000000005\",\n            \"merTid\": \"MY050001\",\n            \"merPaMid\": \"ABSF4U12458\",\n            \"merPaTid\": \"1342495857\",\n            \"mcc\": \"6300\",\n            \"captureAmount\": \"000000000100\",\n            \"transactionCurrencyCode\": \"356\",\n            \"originalTxnAmount\": \"000000000100\",\n            \"rrn\": \"514106472363\",\n            \"authCode\": \"076267\",\n            \"cardNetwork\": \"1\",\n            \"additionalDataRes\": \"0130102DC0203RBL\"\n        }\n    },\n    \"exception\": null,\n    \"pagination\": null\n}\n\n ```\n\n### **400 : Bad Request**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 400,\n        \"status\": \"Error\",\n        \"response\": null\n    },\n    \"exception\": {\n        \"message\": [\n            \"PA Transaction Unique Id is required\",\n            \"Merchant MID is required\",\n            \"Capture Date Time is required\",\n            \"Additional Data Request is required\"\n        ]\n    },\n    \"pagination\": null\n}\n\n ```\n\n### **500 : Internal Server Error**\n\n#### **Response Body**\n\n``` json\n{\n   \"result\":{\n      \"statusCode\": \"500\",\n      \"status\": \"Failure\",\n      \"response\": null\n   },\n   \"exception\": \"Internal Server Error\",\n   \"pagination\": null\n}\n\n ```"
+							},
+							"response": []
+						}
+					],
+					"description": "## 🔄 Switch (AuthZ)\n\nThe **Switch (AuthZ)** component is responsible for **real-time authorization** of card transactions by securely routing requests to the appropriate **issuing bank**, **card network**, or **internal decision engine**.\n\nIt ensures that transactions are validated based on factors such as cardholder balance, account status, risk rules, and issuer response, delivering a fast and reliable authorization decision.\n\n### 🔁 Flow Overview\n\n1. **Authorization Request Initiation**\n    \n    Once the user is authenticated (via Mylapay Secure), a request is sent to the **Switch** to begin the authorization process.\n    \n2. **Routing Logic**\n    \n    The Switch routes the transaction to the correct endpoint (issuer/acquirer/network) based on the BIN, card type, or scheme logic.\n    \n3. **Issuer Decision Handling**\n    \n    The Switch receives the authorization response — **Approved**, **Declined**, or **Referred** — and passes it back to the platform.\n    \n4. **Risk & Velocity Checks** _(Optional)_\n    \n    Inline checks can be applied before forwarding the transaction to the issuer, such as fraud filters or velocity limits.\n    \n\n### 📦 Key API Involved\n\n- **Switch AuthZ API**  \n      \n    Handles the authorization request, response mapping, and routing to appropriate financial institutions.\n    \n\n### ✅ Features\n\n- Supports **Visa, Mastercard, RuPay**, and other networks\n    \n- Intelligent routing based on **BIN tables**, **issuer configurations**, and **fallback rules**\n    \n- Inline support for **fraud scoring**, **transaction velocity**, and **limit enforcement**\n    \n- Real-time SLA monitoring and **retry mechanisms** for resilience"
+				},
+				{
+					"name": "Vas",
+					"item": [
+						{
+							"name": "costing",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "api-key",
+										"value": "{{apiKey}}"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"rrn\":\"PA1234567001299\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{threed-secure}}/dashboard/costing",
+									"host": [
+										"{{threed-secure}}"
+									],
+									"path": [
+										"dashboard",
+										"costing"
+									]
+								},
+								"description": "### **Sample Request Body**\n\n``` json\n{    \"rrn\":\"PA1234567001299\"}\n\n ```\n\n### **200 : Success**\n\n#### **Response Body**\n\n``` json\n{\n    \"statusCode\": 200,\n    \"status\": \"Success\",\n    \"response\": {\n        \"rrn\": \"PA1234567001299\",\n        \"mid\": \"CPAY00000000037\",\n        \"tid\": \"MY370003\",\n        \"inctg\": null,\n        \"scheme_cost\": \"0.4\",\n        \"cross_border_cost\": \"0\",\n        \"update_time\": \"2025-09-06T15:08:20.020Z\"\n    }\n}\n\n ```"
+							},
+							"response": []
+						},
+						{
+							"name": "Bin Check",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer bXlsYXBheS12YXMtbXMtdmVyc2lvbi0xLjA="
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "content-di",
+										"value": ""
+									},
+									{
+										"key": "api-key",
+										"value": "{{apiKey}}"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\n  \"reqType\": \"Single\",\n\n  \"pan\": \"607922123\",\n\n  \"cardNetwork\": \"7\"\n\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{bin}}/bin/check",
+									"host": [
+										"{{bin}}"
+									],
+									"path": [
+										"bin",
+										"check"
+									]
+								},
+								"description": "The **BIN Check API** is used to validate and retrieve details of a card’s BIN (Bank Identification Number). By providing a **PAN (Primary Account Number)** and card network, the API checks if the BIN range exists and returns metadata such as scheme, issuer, country, region, product type, and card type. This helps merchants and payment providers identify card properties, enable routing decisions, and handle compliance checks.\n\nResponses follow a consistent structure with `statusCode`, `status`, `response`, and `exception` fields for easier integration and error handling.\n\n### **Sample Request Body**\n\n``` json\n{\n    \"reqType\": \"Single\",\n    \"pan\": \"607922123\",\n    \"cardNetwork\": \"7\"\n}\n\n ```\n\n### **200 : Success**\n\n#### **Response Body**\n\n``` json\n{\n    \"result\": {\n        \"statusCode\": 200,\n        \"status\": \"Success\",\n        \"response\": [\n            {\n                \"scheme\": \"rupay\",\n                \"reqtype\": \"single\",\n                \"bin_range_high\": \"607922999\",\n                \"bin_range_low\": \"607922000\",\n                \"issuer_bin\": null,\n                \"card_number_length\": \"16\",\n                \"region\": \"IN\",\n                \"country\": \"356\",\n                \"chip_technology\": null,\n                \"product_id\": \"01\",\n                \"card_type\": \"D\",\n                \"active_inactive\": \"True\",\n                \"priority_code\": null\n            }\n        ]\n    },\n    \"exception\": null,\n    \"pagination\": null\n}\n\n ```"
+							},
+							"response": []
+						},
+						{
+							"name": "Fx rate",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "api-key",
+										"value": "{{apiKey}}"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\n    \"source\": \"ind\",\n\n    \"destination\": \"usa\",\n\n    \"network\": \"1\"\n\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{threed-secure}}/dashboard/fx_rate",
+									"host": [
+										"{{threed-secure}}"
+									],
+									"path": [
+										"dashboard",
+										"fx_rate"
+									]
+								},
+								"description": "The **Currency Rate API** allows applications to fetch the **seller exchange rate** for currency conversion between two countries. By providing a source country, destination country, and network, merchants or financial services can determine the applicable exchange rate for transactions.\n\nThis is useful for **cross-border payments, remittances, and e-commerce platforms** that need to dynamically display or calculate currency conversion values.\n\n### **Sample Request Body**\n\n``` json\n{\n    \"source\": \"ind\",\n    \"destination\": \"usa\",\n    \"network\": \"1\"\n}\n\n ```\n\n### **200 : Success**\n\n#### **Response Body**\n\n``` json\n{\n    \"statusCode\": 200,\n    \"status\": \"Success\",\n    \"response\": {\n        \"seller_rate\": \"87.9399194470\"\n    }\n}\n\n ```"
+							},
+							"response": []
+						}
+					],
+					"description": "## 🎁 Value-Added Services (VAS)\n\n**Value-Added Services (VAS)** in the Card Payments flow enhance the transaction by providing dynamic, contextual services such as **cost computation**, **BIN validation**, and **currency conversion rates**. These services operate either **pre-authorization** or **post-authorization**, depending on use case.\n\nVAS enables smarter transaction handling, better user experience, and compliance with pricing or currency-related rules.  \n\n### 📦 Key APIs Involved\n\n- **BIN Check API**  \n      \n    Identifies card type (debit/credit), network (Visa/Mastercard/RuPay), issuing country, and other BIN-level attributes. Useful for compliance, risk filtering, and routing.\n    \n- **Costing API**  \n      \n    Calculates total cost of the transaction including **merchant fees**, **convenience charges**, **taxes**, or **discounts**. Helps present accurate charges to customers before payment.\n    \n- **FX Rate API**  \n      \n    Fetches live **foreign exchange rates** for international transactions. Ensures customers and merchants are aware of the conversion rate applied."
+				}
+			],
+			"description": "## 💳 Card Payments\n\nThe **Card Payments** flow manages secure, compliant, and streamlined processing of card-based transactions. It includes all steps from securing card data to authenticating users and authorizing transactions via issuer and network interactions.\n\nThis flow is central to ensuring a fast, reliable, and secure experience for both merchants and cardholders. It integrates tokenization, authentication, authorization, and value-added services (VAS) to meet regulatory and business requirements.\n\n### 🔁 Flow Stages\n\n1. **Card Tokenization**  \n      \n    Converts sensitive card data into a secure token, ensuring PCI DSS compliance and reducing risk during data transmission and storage.\n    \n2. **User Authentication (via Mylapay Secure)**  \n      \n    Verifies the cardholder’s identity using OTP, biometric, or other 3D Secure mechanisms to prevent fraudulent use.\n    \n3. **Authorization via Switch**  \n      \n    Routes the transaction to the appropriate issuing bank or network for real-time approval or decline based on available funds, risk checks, and limits.\n    \n4. **Value-Added Services (VAS)**  \n      \n    Optional services applied post-authorization, such as loyalty program updates, cashback calculation, surcharge handling, or customer notifications.\n    \n\n### 📦 Key APIs Involved\n\n- **Tokenization API**  \n      \n    Protects card details by generating a unique, non-sensitive token.\n    \n- **Mylapay Secure AuthN API**  \n      \n    Authenticates the user via 3D Secure or similar mechanisms.\n    \n- **Switch AuthZ API**  \n      \n    Routes the transaction for real-time issuer authorization.\n    \n- **VAS API**  \n      \n    Applies post-authorization enhancements like rewards, cashback, or surcharges.\n    \n\n### 🔐 Security Notes\n\n- All cardholder data is **tokenized** before transmission.\n    \n- Authentication follows **EMVCo 3D Secure** or equivalent protocols.\n    \n- Sensitive information is **encrypted in transit and at rest**.\n    \n- Full **audit trails** and **transaction logs** are maintained.\n    \n- Compliant with **PCI DSS**, **RBI**, and **local card scheme regulations**."
+		},
+		{
+			"name": "UPI Payment",
+			"item": [
+				{
+					"name": "Collect",
+					"item": [],
+					"description": "Upcoming...."
+				},
+				{
+					"name": "Pay",
+					"item": [],
+					"description": "Upcoming...."
+				}
+			],
+			"description": "Upcoming...."
+		},
+		{
+			"name": "Net Banking",
+			"item": [
+				{
+					"name": "New Request",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Upcoming...."
+		}
+	],
+	"auth": {
+		"type": "apikey",
+		"apikey": [
+			{
+				"key": "value",
+				"value": "{{apiKey}}",
+				"type": "string"
+			},
+			{
+				"key": "key",
+				"value": "api-key",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseurl-nonprod",
+			"value": "https://onboard-sandbox.mylapay-dev.com/mylapay/v1/onboarding"
+		},
+		{
+			"key": "transaction-nonprod",
+			"value": "https://transactions-sandbox.mylapay-dev.com/mylapay/v1"
+		},
+		{
+			"key": "transaction-switch-nonprod",
+			"value": "https://switchmastercard-demo.mylapay.com/mylapay/v1"
+		},
+		{
+			"key": "transaction-3ds",
+			"value": "https://threedsecuredev-sandbox.mylapay-dev.com/mylapay/v1"
+		},
+		{
+			"key": "tokenization-nonprod",
+			"value": "https://tokenize-sandbox.mylapay-dev.com/mylapay/v1/tokenize"
+		},
+		{
+			"key": "bin",
+			"value": "https://vas-sandbox.mylapay-dev.com/mylapay/v1/vas"
+		},
+		{
+			"key": "threed-secure",
+			"value": "https://threedsecure-demo.mylapay.com/mylapay/v1"
+		}
+	]
+}
