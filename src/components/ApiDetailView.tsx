@@ -735,7 +735,12 @@ export const ApiDetailView: React.FC<ApiDetailViewProps> = ({ api }) => {
             <li className="mb-2 pl-2 text-gray-700">{children}</li>
           ),
           img: ({ node, ...props }) => (
-            <img {...props} className="my-6 max-w-full h-auto rounded-md shadow-md" />
+            <img
+              {...props}
+              className="my-6 w-full max-w-full h-auto rounded-md shadow-md mx-auto"
+              style={{ objectFit: 'contain', maxHeight: '70vh' }}
+              alt={props.alt || ''}
+            />
           ),
           code: ({ node, children, ...props }) => (
             <code className="bg-gray-100 px-1 py-0.5 rounded text-sm text-red-600" {...props}>
