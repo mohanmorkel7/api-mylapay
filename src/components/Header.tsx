@@ -81,7 +81,7 @@ const Header: React.FC<HeaderProps> = ({ apiEndpoints = [], postmanData, onNavig
   return (
     <div className="bg-white sticky top-0 shadow-sm z-30">
       <header className="wrapper">
-        <nav className="flex items-center justify-between px-0 md:py-6 md:px-4" aria-label="Global">
+        <nav className="flex items-center justify-between px-0 md:px-4" aria-label="Global">
           {/* Logo */}
           <div className="flex lg:flex-1">
             <a className="m-1.5 p-1.5" href="/">
