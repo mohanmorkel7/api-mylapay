@@ -131,7 +131,7 @@ const Header: React.FC<HeaderProps> = ({ apiEndpoints = [], postmanData, onNavig
                 href="https://mylapay.com/contact"
                 rel="noopener noreferrer"
               >
-                <div className="mr-1 w-fit my-3 mx-4 lg:my-0 lg:mx-0 lg:mr-0 text-[12px] py-2 px-3 font-bold text-white rounded-md bg-blue-500 hover:bg-blue-600 relative overflow-hidden shadow-2xl transition-all uppercase">
+                <div className="mr-1 w-fit my-0 mx-4 lg:my-0 lg:mx-0 lg:mr-0 text-[12px] py-2 px-3 font-bold text-white rounded-md bg-blue-500 hover:bg-blue-600 relative overflow-hidden shadow-2xl transition-all uppercase">
                   <span className="relative z-10">Get in touch</span>
                 </div>
               </a>
