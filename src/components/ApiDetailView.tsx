@@ -496,11 +496,32 @@ const extractParametersFromPostmanBody = (body: any): any[] => {
   if (body.mode === 'formdata' && Array.isArray(body.formdata)) {
     body.formdata.forEach((param: any) => {
       if (!param.key) return;
+
+      // Detect inline markers in description like "... //mandatory" or "... // optional"
+      let desc = param.description || '';
+      let required: Requirement = param.disabled ? 'Optional' : 'Optional';
+
+      if (typeof desc === 'string') {
+        const markerMatch = desc.match(/\/\/\s*(mandatory|optional|conditional)/i);
+        if (markerMatch) {
+          const m = markerMatch[1].toLowerCase();
+          if (m === 'mandatory') required = 'Mandatory';
+          else if (m === 'conditional') required = 'Conditional';
+          else if (m === 'optional') required = 'Optional';
+
+          // Remove the marker from description for display
+          desc = desc.replace(/\/\/\s*(mandatory|optional|conditional)/i, '').trim();
+        } else {
+          // fallback to disabled flag
+          required = param.disabled ? 'Optional' : 'Mandatory';
+        }
+      }
+
       parameters.push({
         key: param.key,
         type: param.type || 'string',
-        description: param.description || `${param.key}`,
-        required: param.disabled ? 'Optional' : 'Mandatory',
+        description: desc || `${param.key}`,
+        required,
         sample: param.value || (param.type === 'file' ? '[file]' : '')
       });
     });
