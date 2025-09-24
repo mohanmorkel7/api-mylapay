@@ -681,62 +681,60 @@ export const ApiDetailView: React.FC<ApiDetailViewProps> = ({ api }) => {
               )}
             </div> */}
 
-            <div className="prose prose-sm max-w-none text-justify break-all text-gray-700">
+            <div className="prose lg:prose-base max-w-none text-left leading-relaxed text-gray-700">
               <ReactMarkdown
         rehypePlugins={[rehypeRaw]}
         components={{
           h1: ({ node, children, ...props }) => (
-            <h1 className="text-2xl font-bold mt-6 mb-2 text-gray-900" {...props}>
+            <h1 className="text-3xl font-bold mt-6 mb-3 text-gray-900" {...props}>
               {children}
             </h1>
           ),
           h2: ({ node, children, ...props }) => (
-            <h2 className="text-xl font-semibold mt-5 mb-2 text-gray-800" {...props}>
+            <h2 className="text-2xl font-semibold mt-5 mb-3 text-gray-800" {...props}>
               {children}
             </h2>
           ),
           h3: ({ node, children, ...props }) => (
-            <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-700" {...props}>
+            <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-800" {...props}>
               {children}
             </h3>
           ),
           h4: ({ node, children, ...props }) => (
-            <h4 className="text-base font-medium mt-3 mb-2 text-gray-700" {...props}>
+            <h4 className="text-base font-medium mt-3 mb-2 text-gray-800" {...props}>
               {children}
             </h4>
           ),
           p: ({ node, children, ...props }) => (
-            <p className="text-justify whitespace-pre-wrap break-words mb-4" {...props}>
+            <p className="text-base leading-7 whitespace-pre-wrap break-words mb-4 text-gray-700" {...props}>
               {children}
             </p>
           ),
           ul: ({ node, children, ...props }) => (
-            <ul className="list-disc list-outside ml-6 mb-4" {...props}>
+            <ul className="list-disc list-outside ml-6 mb-4 space-y-1" {...props}>
               {children}
             </ul>
           ),
           ol: ({ node, children, ...props }) => (
-            <ol className="list-decimal list-outside ml-6 mb-4" {...props}>
+            <ol className="list-decimal list-outside ml-6 mb-4 space-y-1" {...props}>
               {children}
             </ol>
           ),
           li: ({ node, children, ...props }) => (
-            <li className="text-justify mb-1 pl-2">{children}</li>
+            <li className="mb-2 pl-2 text-gray-700">{children}</li>
           ),
           img: ({ node, ...props }) => (
-            <img {...props} className="my-4 max-w-full h-auto rounded-md shadow" />
+            <img {...props} className="my-6 max-w-full h-auto rounded-md shadow-md" />
           ),
           code: ({ node, children, ...props }) => (
-            
-              <code className="bg-gray-100 px-1 py-0.5 rounded text-sm" {...props}>
-                {children}
-              </code>
-            )
-          ,
+            <code className="bg-gray-100 px-1 py-0.5 rounded text-sm text-red-600" {...props}>
+              {children}
+            </code>
+          ),
           pre: ({ node, children, ...props }) => (
             <pre
-              className="bg-gray-100 p-3 rounded overflow-x-auto text-sm mb-4"
-              style={{ whiteSpace: 'pre-wrap',  }}
+              className="bg-gray-100 p-4 rounded overflow-x-auto text-sm mb-4 shadow-sm"
+              style={{ whiteSpace: 'pre-wrap' }}
               {...props}
             >
               {children}
