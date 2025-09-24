@@ -454,20 +454,17 @@ const extractBaseUrl = (url: any): string => {
     return curlCommand;
 
   case 'javascript':
+    if (isFormData && formEntries.length > 0) {
+      // Build JS FormData example
+      const formLines = formEntries.map(f => `fd.append('${f.key}', '${f.value}');`).join('\n');
+      return `const fd = new FormData();\n${formLines}\n\nfetch('${fullUrl}', {\n  method: '${api.method}',\n  body: fd\n})\n  .then(res => res.json())\n  .then(data => console.log(data));`;
+    }
+
     const headersObj = Object.entries(headers)
       .map(([key, value]) => `    '${key}': '${value}'`)
       .join(',\n');
 
-    return `fetch('${fullUrl}', {
-  method: '${api.method}',
-  headers: {
-${headersObj}
-  }${hasBody && requestBody ? `,
-  body: \`${requestBody}\`` : ''}
-})
-.then(response => response.json())
-.then(data => console.log(data))
-.catch(error => console.error('Error:', error));`;
+    return `fetch('${fullUrl}', {\n  method: '${api.method}',\n  headers: {\n${headersObj}\n  }${hasBody && requestBody ? `,\n  body: \`${requestBody}\`` : ''}\n})\n.then(response => response.json())\n.then(data => console.log(data))\n.catch(error => console.error('Error:', error));`;
 
   case 'python':
     const pythonHeaders = Object.entries(headers)
