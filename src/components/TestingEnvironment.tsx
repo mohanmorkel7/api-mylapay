@@ -419,6 +419,16 @@ const extractBaseUrl = (url: any): string => {
 
     // console.log('headers :', JSON.stringify(headers));
 
+    // prepare form-data if the Postman body provides it
+    const postmanBody = api.postmanData?.body;
+    const isFormData = postmanBody?.mode === 'formdata' && Array.isArray(postmanBody?.formdata);
+    const formEntries: { key: string; value: string }[] = [];
+    if (isFormData) {
+      postmanBody.formdata.forEach((p: any) => {
+        if (p && p.key) formEntries.push({ key: p.key, value: p.value ?? '' });
+      });
+    }
+
     switch (language) {
   case 'curl':
     let curlCommand = "";
@@ -433,7 +443,11 @@ const extractBaseUrl = (url: any): string => {
       curlCommand += ` \\\n  -H "${key}: ${value}"`;
     });
 
-    if (hasBody && requestBody) {
+    if (isFormData && formEntries.length > 0) {
+      formEntries.forEach(fe => {
+        curlCommand += ` \\\n  -F "${fe.key}=${fe.value}"`;
+      });
+    } else if (hasBody && requestBody) {
       curlCommand += ` \\\n  -d '${requestBody}'`;
     }
 
