@@ -662,12 +662,23 @@ export const ApiDetailView: React.FC<ApiDetailViewProps> = ({ api }) => {
 
     return (
       <div>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
-            <Folder size={20} className="text-blue-600" />
-            <span className="text-sm font-medium text-blue-800">Folder</span>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
+              <Folder size={20} className="text-blue-600" />
+              <span className="text-sm font-medium text-blue-800">Folder</span>
+            </div>
+            <div>
+              <h3 className="text-2xl font-semibold">{api.name}</h3>
+              {api.folderInfo?.item?.length ? (
+                <p className="text-sm text-gray-500">{api.folderInfo.item.length} documents</p>
+              ) : null}
+            </div>
           </div>
-          <h3 className="text-xl font-semibold">{api.name}</h3>
+          <div className="text-right">
+            {/* Optional actions or summary */}
+            <span className="text-sm text-gray-500">Documentation</span>
+          </div>
         </div>
 
         <div className="space-y-6">
