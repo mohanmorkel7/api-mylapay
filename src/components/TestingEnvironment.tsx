@@ -694,16 +694,10 @@ ${nodeHeaders}
       {/* Display current config status */}
       <div className="bg-gray-50 p-3 rounded-lg text-sm">
         <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">Base URL:</span>
-            <span className="font-mono text-gray-600 truncate max-w-full block" title={baseurlmanual || ''}>
-              {baseurlmanual || 'Not configured'}
-            </span>
-          </div>
-          <div className="mt-1">
-            <span className="font-medium">Endpoint:</span>
-            <code className="block text-sm font-mono text-gray-700 break-words">{api?.endpoint || ''}</code>
-          </div>
+          <span className="font-medium">Base URL:</span>
+          <span className="font-mono text-gray-600 truncate max-w-full block" title={baseurlmanual || ''}>
+            {baseurlmanual || 'Not configured'}
+          </span>
         </div>
         {/* <div className="flex items-center justify-between mt-1">
           <span className="font-medium">Bearer Token:</span>
