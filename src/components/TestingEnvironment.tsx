@@ -502,6 +502,28 @@ print(f"Status: {response.status_code}")
 print(response.json())`;
 
   case 'php':
+    if (isFormData && formEntries.length > 0) {
+      const formLines = formEntries.map(f => ` ${JSON.stringify(f.key)} => ${JSON.stringify(f.value)}`).join(',\n');
+      return `<?php
+$url = "${fullUrl}";
+$form = [
+${formLines}
+];
+
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $url);
+curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "${api.method}");
+curl_setopt($ch, CURLOPT_POSTFIELDS, $form);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+$response = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+echo "Status: " . $httpCode . "\n";
+echo $response;
+?>`;
+    }
     const phpHeaders = Object.entries(headers)
       .map(([key, value]) => `    "${key}: ${value}"`)
       .join(',\n');
