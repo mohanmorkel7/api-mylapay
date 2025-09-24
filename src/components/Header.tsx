@@ -84,7 +84,7 @@ const Header: React.FC<HeaderProps> = ({ apiEndpoints = [], postmanData, onNavig
         <nav className="flex items-center justify-between px-0 md:px-4 py-2 md:py-3" aria-label="Global">
           {/* Logo */}
           <div className="flex lg:flex-1">
-            <a className="m-0 p-0" href="/">
+            <a className="m-0 p-0 md:py-1" href="/">
               <img 
                 alt="Mylapay-logo" 
                 loading="lazy" 
