@@ -419,6 +419,16 @@ const extractBaseUrl = (url: any): string => {
 
     // console.log('headers :', JSON.stringify(headers));
 
+    // prepare form-data if the Postman body provides it
+    const postmanBody = api.postmanData?.body;
+    const isFormData = postmanBody?.mode === 'formdata' && Array.isArray(postmanBody?.formdata);
+    const formEntries: { key: string; value: string }[] = [];
+    if (isFormData) {
+      postmanBody.formdata.forEach((p: any) => {
+        if (p && p.key) formEntries.push({ key: p.key, value: p.value ?? '' });
+      });
+    }
+
     switch (language) {
   case 'curl':
     let curlCommand = "";
@@ -433,29 +443,45 @@ const extractBaseUrl = (url: any): string => {
       curlCommand += ` \\\n  -H "${key}: ${value}"`;
     });
 
-    if (hasBody && requestBody) {
+    if (isFormData && formEntries.length > 0) {
+      formEntries.forEach(fe => {
+        curlCommand += ` \\\n  -F "${fe.key}=${fe.value}"`;
+      });
+    } else if (hasBody && requestBody) {
       curlCommand += ` \\\n  -d '${requestBody}'`;
     }
 
     return curlCommand;
 
   case 'javascript':
+    if (isFormData && formEntries.length > 0) {
+      // Build JS FormData example
+      const formLines = formEntries.map(f => `fd.append('${f.key}', '${f.value}');`).join('\n');
+      return `const fd = new FormData();\n${formLines}\n\nfetch('${fullUrl}', {\n  method: '${api.method}',\n  body: fd\n})\n  .then(res => res.json())\n  .then(data => console.log(data));`;
+    }
+
     const headersObj = Object.entries(headers)
       .map(([key, value]) => `    '${key}': '${value}'`)
       .join(',\n');
 
-    return `fetch('${fullUrl}', {
-  method: '${api.method}',
-  headers: {
-${headersObj}
-  }${hasBody && requestBody ? `,
-  body: \`${requestBody}\`` : ''}
-})
-.then(response => response.json())
-.then(data => console.log(data))
-.catch(error => console.error('Error:', error));`;
+    return `fetch('${fullUrl}', {\n  method: '${api.method}',\n  headers: {\n${headersObj}\n  }${hasBody && requestBody ? `,\n  body: \`${requestBody}\`` : ''}\n})\n.then(response => response.json())\n.then(data => console.log(data))\n.catch(error => console.error('Error:', error));`;
 
   case 'python':
+    if (isFormData && formEntries.length > 0) {
+      const formLines = formEntries.map(f => `(${JSON.stringify(f.key)}, ${JSON.stringify(f.value)})`).join(',\n  ');
+      return `import requests
+
+url = "${fullUrl}"
+
+form_data = [
+  ${formLines}
+]
+
+response = requests.${api.method.toLowerCase()}(url, files=dict(form_data))
+print('Status:', response.status_code)
+print(response.text)`;
+    }
+
     const pythonHeaders = Object.entries(headers)
       .map(([key, value]) => `    "${key}": "${value}"`)
       .join(',\n');
@@ -476,6 +502,28 @@ print(f"Status: {response.status_code}")
 print(response.json())`;
 
   case 'php':
+    if (isFormData && formEntries.length > 0) {
+      const formLines = formEntries.map(f => ` ${JSON.stringify(f.key)} => ${JSON.stringify(f.value)}`).join(',\n');
+      return `<?php
+$url = "${fullUrl}";
+$form = [
+${formLines}
+];
+
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $url);
+curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "${api.method}");
+curl_setopt($ch, CURLOPT_POSTFIELDS, $form);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+$response = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+echo "Status: " . $httpCode . "\n";
+echo $response;
+?>`;
+    }
     const phpHeaders = Object.entries(headers)
       .map(([key, value]) => `    "${key}: ${value}"`)
       .join(',\n');
@@ -507,6 +555,10 @@ echo $response;
 ?>`;
 
   case 'nodejs':
+  if (isFormData && formEntries.length > 0) {
+    const formLines = formEntries.map(f => `fd.append('${f.key}', '${f.value}');`).join('\n');
+    return `const FormData = require('form-data');\nconst fd = new FormData();\n${formLines}\n\nfetch('${fullUrl}', {\n  method: '${api.method}',\n  body: fd\n})\n.then(res => res.json())\n.then(data => console.log(data));`;
+  }
   const nodeHeaders = Object.entries(headers)
     .map(([key, value]) => `    '${key}': '${value}'`)
     .join(',\n');
@@ -641,9 +693,11 @@ ${nodeHeaders}
 
       {/* Display current config status */}
       <div className="bg-gray-50 p-3 rounded-lg text-sm">
-        <div className="flex items-center justify-between">
-          <span className="font-medium">Base URL:</span>
-          <span className="font-mono text-gray-600">{baseurlmanual || 'Not configured'}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-medium flex-shrink-0">Base URL:</span>
+          <span className="font-mono text-gray-600 whitespace-normal break-all" title={baseurlmanual || ''}>
+            {baseurlmanual || 'Not configured'}
+          </span>
         </div>
         {/* <div className="flex items-center justify-between mt-1">
           <span className="font-medium">Bearer Token:</span>

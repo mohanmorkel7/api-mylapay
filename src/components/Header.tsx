@@ -81,10 +81,10 @@ const Header: React.FC<HeaderProps> = ({ apiEndpoints = [], postmanData, onNavig
   return (
     <div className="bg-white sticky top-0 shadow-sm z-30">
       <header className="wrapper">
-        <nav className="flex items-center justify-between px-0 md:py-6 md:px-4" aria-label="Global">
+        <nav className="flex items-center justify-between px-0 md:px-4 py-2 md:py-3" aria-label="Global">
           {/* Logo */}
           <div className="flex lg:flex-1">
-            <a className="m-1.5 p-1.5" href="/">
+            <a className="m-0 p-0 md:py-1" href="/">
               <img 
                 alt="Mylapay-logo" 
                 loading="lazy" 
@@ -131,13 +131,10 @@ const Header: React.FC<HeaderProps> = ({ apiEndpoints = [], postmanData, onNavig
                 href="https://mylapay.com/contact"
                 rel="noopener noreferrer"
               >
-                <div className="mr-1 w-fit my-3 mx-4 lg:my-0 lg:mx-0 lg:mr-0 text-[12px] py-2 px-3 font-bold text-white rounded-md bg-blue-500 hover:bg-blue-600 relative overflow-hidden shadow-2xl transition-all uppercase">
+                <div className="mr-1 w-fit my-0 mx-4 lg:my-0 lg:mx-0 lg:mr-0 text-[12px] py-2 px-3 font-bold text-white rounded-md bg-blue-500 hover:bg-blue-600 relative overflow-hidden shadow-2xl transition-all uppercase">
                   <span className="relative z-10">Get in touch</span>
                 </div>
               </a>
-              <button className="w-fit my-3 mx-4 lg:my-0 lg:mx-0 lg:mr-0 text-[12px] py-2 px-3 font-bold text-white rounded-md bg-blue-700 hover:bg-blue-800 relative overflow-hidden shadow-2xl transition-all uppercase">
-                <span className="relative z-10">Logout</span>
-              </button>
             </div>
           </div>
         </nav>

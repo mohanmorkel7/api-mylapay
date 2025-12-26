@@ -316,28 +316,169 @@ export const getApiDetails = (api: any) => {
 
 const extractParametersFromPostmanBody = (body: any): any[] => {
   const parameters: any[] = [];
-
   if (!body || !body.mode) return parameters;
 
-  // 1. Handle raw JSON bodies
-  if (body.mode === 'raw' && typeof body.raw === 'string') {
-    try {
-      const jsonBody = JSON.parse(body.raw);
-      Object.entries(jsonBody).forEach(([key, value]) => {
+  type Requirement = 'Mandatory' | 'Optional' | 'Conditional';
+
+  const toType = (v: any): string => {
+    if (Array.isArray(v)) return 'array';
+    if (v === null) return 'null';
+    return typeof v;
+  };
+
+  // Remove // and /* */ comments from JSON while preserving string contents
+  const stripJsonComments = (input: string): string => {
+    let out = '';
+    let inStr = false;
+    let quote: string | null = null;
+    let inLineComment = false;
+    let inBlockComment = false;
+    for (let i = 0; i < input.length; i++) {
+      const ch = input[i];
+      const next = input[i + 1];
+      if (inLineComment) {
+        if (ch === '\n') {
+          inLineComment = false;
+          out += ch;
+        }
+        continue;
+      }
+      if (inBlockComment) {
+        if (ch === '*' && next === '/') {
+          inBlockComment = false;
+          i++;
+        }
+        continue;
+      }
+      if (!inStr && ch === '/' && next === '/') {
+        inLineComment = true;
+        i++;
+        continue;
+      }
+      if (!inStr && ch === '/' && next === '*') {
+        inBlockComment = true;
+        i++;
+        continue;
+      }
+      if (inStr) {
+        out += ch;
+        if (ch === '\\') {
+          out += input[++i] ?? '';
+          continue;
+        }
+        if (ch === quote) {
+          inStr = false;
+          quote = null;
+        }
+        continue;
+      }
+      if (ch === '"' || ch === "'") {
+        inStr = true;
+        quote = ch;
+        out += ch;
+        continue;
+      }
+      out += ch;
+    }
+    return out;
+  };
+
+  // Capture per-line requirements from trailing // comments like // mandatory | // conditional | // optional
+  const captureRequirementsByLine = (input: string): Record<string, Requirement> => {
+    const map: Record<string, Requirement> = {};
+    const lines = input.split(/\r?\n/);
+    for (const line of lines) {
+      // Find comment start outside of simple quoted strings (heuristic)
+      let i = 0;
+      let inStr = false;
+      let quote: string | null = null;
+      let commentIdx = -1;
+      while (i < line.length) {
+        const ch = line[i];
+        if (inStr) {
+          if (ch === '\\') { i += 2; continue; }
+          if (ch === quote) { inStr = false; quote = null; }
+          i++; continue;
+        }
+        if (ch === '"' || ch === "'") { inStr = true; quote = ch; i++; continue; }
+        if (ch === '/' && line[i + 1] === '/') { commentIdx = i; break; }
+        i++;
+      }
+      if (commentIdx >= 0) {
+        const before = line.slice(0, commentIdx);
+        const comment = line.slice(commentIdx + 2).toLowerCase();
+        const keyMatch = before.match(/"([^"]+)"\s*:/);
+        if (keyMatch) {
+          const keyLower = keyMatch[1].trim().toLowerCase();
+          if (comment.includes('mandatory')) map[keyLower] = 'Mandatory';
+          else if (comment.includes('conditional')) map[keyLower] = 'Conditional';
+          else if (comment.includes('optional')) map[keyLower] = 'Optional';
+        }
+      }
+    }
+    return map;
+  };
+
+  // Recursively flatten objects into dot-notated parameter rows; inherit requirement from parent when not explicitly set on the key
+  const flattenToParams = (
+    obj: any,
+    path: string[] = [],
+    inheritedReq?: Requirement,
+    reqByKey?: Record<string, Requirement>
+  ) => {
+    Object.entries(obj).forEach(([k, v]) => {
+      const keyPath = [...path, k];
+      const leafKeyLower = k.toLowerCase();
+      const explicitReq = reqByKey?.[leafKeyLower];
+      const required: Requirement = explicitReq || inheritedReq || 'Optional';
+      const vType = toType(v);
+
+      if (vType === 'object' && v !== null && !Array.isArray(v)) {
+        // Add row for the object itself
         parameters.push({
-          key,
-          type: typeof value,
-          description: `${key}`,
-          required: 'Optional',
-          sample: value
+          key: keyPath.join('.'),
+          type: 'object',
+          description: keyPath.join('.'),
+          required,
+          sample: ''
         });
-      });
+        flattenToParams(v, keyPath, required, reqByKey);
+      } else if (Array.isArray(v)) {
+        parameters.push({
+          key: keyPath.join('.'),
+          type: 'array',
+          description: keyPath.join('.'),
+          required,
+          sample: v
+        });
+        if (v.length > 0 && typeof v[0] === 'object' && v[0] !== null) {
+          flattenToParams(v[0], [...keyPath, '[0]'], required, reqByKey);
+        }
+      } else {
+        parameters.push({
+          key: keyPath.join('.'),
+          type: vType,
+          description: keyPath.join('.'),
+          required,
+          sample: v
+        });
+      }
+    });
+  };
+
+  // 1) Raw JSON (with optional comments and requirement markers)
+  if (body.mode === 'raw' && typeof body.raw === 'string') {
+    const reqByKey = captureRequirementsByLine(body.raw);
+    const cleaned = stripJsonComments(body.raw);
+    try {
+      const jsonBody = JSON.parse(cleaned);
+      flattenToParams(jsonBody, [], undefined, reqByKey);
     } catch (e) {
       console.warn('Body is not valid JSON:', e);
     }
   }
 
-  // 2. Handle x-www-form-urlencoded
+  // 2) x-www-form-urlencoded
   if (body.mode === 'urlencoded' && Array.isArray(body.urlencoded)) {
     body.urlencoded.forEach((param: any) => {
       if (!param.key) return;
@@ -351,15 +492,36 @@ const extractParametersFromPostmanBody = (body: any): any[] => {
     });
   }
 
-  // 3. Handle form-data (file or string fields)
+  // 3) form-data
   if (body.mode === 'formdata' && Array.isArray(body.formdata)) {
     body.formdata.forEach((param: any) => {
       if (!param.key) return;
+
+      // Detect inline markers in description like "... //mandatory" or "... // optional"
+      let desc = param.description || '';
+      let required: Requirement = param.disabled ? 'Optional' : 'Optional';
+
+      if (typeof desc === 'string') {
+        const markerMatch = desc.match(/\/\/\s*(mandatory|optional|conditional)/i);
+        if (markerMatch) {
+          const m = markerMatch[1].toLowerCase();
+          if (m === 'mandatory') required = 'Mandatory';
+          else if (m === 'conditional') required = 'Conditional';
+          else if (m === 'optional') required = 'Optional';
+
+          // Remove the marker from description for display
+          desc = desc.replace(/\/\/\s*(mandatory|optional|conditional)/i, '').trim();
+        } else {
+          // fallback to disabled flag
+          required = param.disabled ? 'Optional' : 'Mandatory';
+        }
+      }
+
       parameters.push({
         key: param.key,
         type: param.type || 'string',
-        description: param.description || `${param.key}`,
-        required: param.disabled ? 'Optional' : 'Mandatory',
+        description: desc || `${param.key}`,
+        required,
         sample: param.value || (param.type === 'file' ? '[file]' : '')
       });
     });
@@ -499,13 +661,24 @@ export const ApiDetailView: React.FC<ApiDetailViewProps> = ({ api }) => {
      console.log("api : ", JSON.stringify(api));
 
     return (
-      <div>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
-            <Folder size={20} className="text-blue-600" />
-            <span className="text-sm font-medium text-blue-800">Folder</span>
+      <div className="overflow-x-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
+              <Folder size={20} className="text-blue-600" />
+              <span className="text-sm font-medium text-blue-800">Folder</span>
+            </div>
+            <div>
+              <h3 className="text-2xl font-semibold">{api.name}</h3>
+              {api.folderInfo?.item?.length ? (
+                <p className="text-sm text-gray-500">{api.folderInfo.item.length} documents</p>
+              ) : null}
+            </div>
           </div>
-          <h3 className="text-xl font-semibold">{api.name}</h3>
+          <div className="text-right">
+            {/* Optional actions or summary */}
+            <span className="text-sm text-gray-500">Documentation</span>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -519,62 +692,65 @@ export const ApiDetailView: React.FC<ApiDetailViewProps> = ({ api }) => {
               )}
             </div> */}
 
-            <div className="prose prose-sm max-w-none text-justify break-all text-gray-700">
+            <div className="prose lg:prose-base max-w-none text-left leading-relaxed text-gray-700">
               <ReactMarkdown
         rehypePlugins={[rehypeRaw]}
         components={{
           h1: ({ node, children, ...props }) => (
-            <h1 className="text-2xl font-bold mt-6 mb-2 text-gray-900" {...props}>
+            <h1 className="text-3xl font-bold mt-6 mb-3 text-gray-900" {...props}>
               {children}
             </h1>
           ),
           h2: ({ node, children, ...props }) => (
-            <h2 className="text-xl font-semibold mt-5 mb-2 text-gray-800" {...props}>
+            <h2 className="text-2xl font-semibold mt-5 mb-3 text-gray-800" {...props}>
               {children}
             </h2>
           ),
           h3: ({ node, children, ...props }) => (
-            <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-700" {...props}>
+            <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-800" {...props}>
               {children}
             </h3>
           ),
           h4: ({ node, children, ...props }) => (
-            <h4 className="text-base font-medium mt-3 mb-2 text-gray-700" {...props}>
+            <h4 className="text-base font-medium mt-3 mb-2 text-gray-800" {...props}>
               {children}
             </h4>
           ),
           p: ({ node, children, ...props }) => (
-            <p className="text-justify whitespace-pre-wrap break-words mb-4" {...props}>
+            <p className="text-base leading-7 whitespace-pre-wrap break-words mb-4 text-gray-700" {...props}>
               {children}
             </p>
           ),
           ul: ({ node, children, ...props }) => (
-            <ul className="list-disc list-outside ml-6 mb-4" {...props}>
+            <ul className="list-disc list-outside ml-6 mb-4 space-y-1" {...props}>
               {children}
             </ul>
           ),
           ol: ({ node, children, ...props }) => (
-            <ol className="list-decimal list-outside ml-6 mb-4" {...props}>
+            <ol className="list-decimal list-outside ml-6 mb-4 space-y-1" {...props}>
               {children}
             </ol>
           ),
           li: ({ node, children, ...props }) => (
-            <li className="text-justify mb-1 pl-2">{children}</li>
+            <li className="mb-2 pl-2 text-gray-700">{children}</li>
           ),
           img: ({ node, ...props }) => (
-            <img {...props} className="my-4 max-w-full h-auto rounded-md shadow" />
+            <img
+              {...props}
+              className="my-6 w-full max-w-full h-auto rounded-md shadow-md mx-auto"
+              style={{ objectFit: 'contain', maxHeight: '70vh' }}
+              alt={props.alt || ''}
+            />
           ),
           code: ({ node, children, ...props }) => (
-            
-              <code className="bg-gray-100 px-1 py-0.5 rounded text-sm" {...props}>
-                {children}
-              </code>
-            )
-          ,
+            <code className="bg-gray-100 px-1 py-0.5 rounded text-sm text-red-600" {...props}>
+              {children}
+            </code>
+          ),
           pre: ({ node, children, ...props }) => (
             <pre
-              className="bg-gray-100 p-3 rounded overflow-x-auto text-sm mb-4"
-              style={{ whiteSpace: 'pre-wrap',  }}
+              className="bg-gray-100 p-4 rounded text-sm mb-4 shadow-sm break-words whitespace-pre-wrap"
+              style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
               {...props}
             >
               {children}
@@ -591,7 +767,7 @@ export const ApiDetailView: React.FC<ApiDetailViewProps> = ({ api }) => {
             <div>
               <h4 className="font-semibold mb-2">Folder Information</h4>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <pre className="text-sm text-gray-700 whitespace-pre-wrap">
+                <pre className="text-sm text-gray-700 whitespace-pre-wrap break-words">
                   {JSON.stringify(api.folderInfo, null, 2)}
                 </pre>
               </div>
@@ -630,7 +806,7 @@ export const ApiDetailView: React.FC<ApiDetailViewProps> = ({ api }) => {
             <h4 className="font-semibold mb-2">Description</h4>
           
 
-            <div className="prose prose-sm max-w-none text-justify whitespace-pre-wrap break-words text-gray-700 bg-gray-100 rounded-md p-6 overflow-scroll">
+            <div className="prose prose-sm max-w-none text-justify whitespace-pre-wrap break-words text-gray-700 bg-gray-100 rounded-md p-6 overflow-x-hidden">
               <ReactMarkdown rehypePlugins={[rehypeRaw]}>
                       {details.description}
               </ReactMarkdown>
